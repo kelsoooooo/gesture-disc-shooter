@@ -3,312 +3,209 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>手勢飛盤射擊</title>
+  <title>手勢知識問答射擊</title>
   <style>
     :root {
       color-scheme: dark;
       --bg-1: #040814;
       --bg-2: #08152f;
       --cyan: #59efff;
-      --cyan-soft: rgba(89, 239, 255, 0.18);
       --pink: #ff57c6;
-      --pink-soft: rgba(255, 87, 198, 0.18);
       --lime: #a9ff70;
       --amber: #ffcf70;
       --red: #ff6565;
-      --panel: rgba(7, 15, 32, 0.72);
+      --panel: rgba(7, 15, 32, 0.74);
       --panel-border: rgba(255, 255, 255, 0.08);
       --text: #f2f6ff;
       --text-soft: rgba(242, 246, 255, 0.72);
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
     }
 
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-    html,
-    body {
+    html, body {
       margin: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(56, 99, 255, 0.12), transparent 35%),
-        radial-gradient(circle at 20% 80%, rgba(89, 239, 255, 0.12), transparent 24%),
-        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
       color: var(--text);
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 44px 44px;
-      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 86%);
-    }
+    .app { position: relative; width: 100%; height: 100%; overflow: hidden; }
+    #gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; }
+    #inputVideo { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
-    .app {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      cursor: none;
-    }
-
-    canvas {
-      display: block;
-    }
-
-    #gameCanvas {
+    /* ---------- Top stack: HUD + question ---------- */
+    .top-stack {
       position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    #inputVideo {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .hud {
-      position: absolute;
-      top: 20px;
-      left: 20px;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 5;
       display: flex;
       flex-direction: column;
+      align-items: center;
       gap: 12px;
-      z-index: 5;
       pointer-events: none;
     }
 
-    .hud-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      max-width: min(72vw, 960px);
-    }
+    .hud { width: 100%; display: flex; gap: 10px; flex-wrap: wrap; }
 
     .glass-card {
-      min-width: 160px;
-      padding: 14px 16px;
-      border-radius: 18px;
+      padding: 10px 14px;
+      border-radius: 16px;
       background: var(--panel);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       border: 1px solid var(--panel-border);
       box-shadow: var(--shadow);
+      min-width: 110px;
     }
 
-    .label {
-      font-size: 11px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--text-soft);
+    .glass-card.grow { flex: 1 1 260px; }
+
+    .label { font-size: 11px; letter-spacing: 0.14em; color: var(--text-soft); margin-bottom: 6px; }
+    .value { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .value.small { font-size: 16px; line-height: 1.35; font-weight: 700; }
+    .status-text { font-size: 12px; color: var(--text-soft); line-height: 1.5; margin-top: 2px; }
+    .accent-cyan { color: var(--cyan); }
+    .accent-pink { color: #ff9fe3; }
+    .accent-lime { color: var(--lime); }
+    .accent-amber { color: var(--amber); }
+
+    .audio-toggle {
+      pointer-events: auto;
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    .audio-toggle.off { color: rgba(242, 246, 255, 0.45); }
+
+    .question-banner {
+      width: min(980px, 100%);
+      padding: 16px 22px 14px;
+      border-radius: 22px;
+      background: rgba(6, 13, 31, 0.84);
+      border: 1px solid rgba(89, 239, 255, 0.22);
+      box-shadow: var(--shadow), 0 0 40px rgba(89, 239, 255, 0.08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      text-align: center;
+      transition: border-color 0.2s ease;
+    }
+    .question-banner.hidden { visibility: hidden; }
+    .question-banner.correct { border-color: rgba(169, 255, 112, 0.7); }
+    .question-banner.wrong { border-color: rgba(255, 101, 101, 0.7); }
+
+    .q-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--cyan);
       margin-bottom: 8px;
     }
+    .q-text { font-size: clamp(20px, 2.6vw, 32px); font-weight: 800; line-height: 1.3; }
+    .q-feedback { min-height: 22px; margin-top: 6px; font-size: 15px; font-weight: 700; color: var(--text-soft); }
+    .q-feedback.good { color: var(--lime); }
+    .q-feedback.bad { color: #ffacbb; }
 
-    .value {
-      font-size: 30px;
-      font-weight: 800;
-      line-height: 1;
-      text-shadow: 0 0 18px rgba(89, 239, 255, 0.24);
+    .timer-track { margin-top: 10px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .timer-fill {
+      height: 100%;
+      width: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cyan), var(--lime));
+      transform-origin: left center;
     }
+    .timer-fill.urgent { background: linear-gradient(90deg, var(--red), var(--amber)); }
 
-    .value.small {
-      font-size: 18px;
-      line-height: 1.35;
-      font-weight: 700;
-      color: var(--text);
-      text-shadow: none;
-    }
-
-    .status-text {
-      font-size: 13px;
-      color: var(--text-soft);
-      line-height: 1.55;
-    }
-
-    .accent-cyan {
-      color: var(--cyan);
-    }
-
-    .accent-pink {
-      color: #ff9fe3;
-    }
-
-    .accent-lime {
-      color: var(--lime);
-    }
-
+    /* ---------- Camera preview ---------- */
     .preview-shell {
       position: absolute;
-      right: 20px;
-      bottom: 20px;
-      width: min(30vw, 340px);
-      min-width: 240px;
+      right: 16px;
+      bottom: 16px;
+      width: min(24vw, 260px);
+      min-width: 200px;
       z-index: 6;
-      border-radius: 20px;
+      border-radius: 18px;
       overflow: hidden;
       background: rgba(4, 10, 24, 0.88);
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: var(--shadow);
     }
-
     .preview-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-soft);
       letter-spacing: 0.06em;
-      text-transform: uppercase;
     }
+    .preview-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.3); }
+    .preview-dot.live { background: var(--lime); box-shadow: 0 0 12px rgba(169, 255, 112, 0.75); }
+    #previewCanvas { width: 100%; aspect-ratio: 4 / 3; display: block; background: #050b18; }
+    .preview-help { padding: 8px 12px 10px; font-size: 11px; color: rgba(242, 246, 255, 0.6); line-height: 1.5; }
 
-    .preview-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.3);
-      box-shadow: 0 0 10px transparent;
-      transition: all 0.2s ease;
-    }
-
-    .preview-dot.live {
-      background: var(--lime);
-      box-shadow: 0 0 12px rgba(169, 255, 112, 0.75);
-    }
-
-    #previewCanvas {
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      background:
-        radial-gradient(circle at 50% 30%, rgba(89, 239, 255, 0.08), transparent 42%),
-        linear-gradient(180deg, rgba(7, 15, 32, 0.92), rgba(2, 8, 18, 0.96));
-    }
-
-    .preview-help {
-      padding: 10px 12px 12px;
-      font-size: 12px;
-      color: rgba(242, 246, 255, 0.6);
-      line-height: 1.5;
-    }
-
+    /* ---------- Overlays ---------- */
     .overlay {
       position: absolute;
       inset: 0;
-      display: grid;
-      place-items: center;
+      display: flex;
       padding: 24px;
       z-index: 10;
-      background: rgba(3, 6, 16, 0.72);
+      background: rgba(3, 6, 16, 0.76);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       transition: opacity 0.28s ease, visibility 0.28s ease;
+      overflow-y: auto;
     }
-
-    .overlay.hidden {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
+    .overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 
     .panel {
-      width: min(92vw, 720px);
+      margin: auto;
+      width: min(92vw, 760px);
       border-radius: 26px;
       padding: 28px;
-      background: rgba(6, 13, 31, 0.92);
+      background: rgba(6, 13, 31, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: var(--shadow);
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--cyan);
-      margin-bottom: 14px;
-    }
+    .eyebrow { font-size: 12px; letter-spacing: 0.18em; color: var(--cyan); margin-bottom: 12px; }
+    h1 { margin: 0 0 12px; font-size: clamp(30px, 4vw, 50px); line-height: 1.05; letter-spacing: -0.02em; }
+    .intro { margin: 0 0 20px; font-size: 16px; color: var(--text-soft); line-height: 1.75; }
 
-    .eyebrow::before {
-      content: "";
-      width: 32px;
-      height: 1px;
-      background: currentColor;
-      box-shadow: 0 0 14px currentColor;
-    }
 
-    h1 {
-      margin: 0 0 14px;
-      font-size: clamp(30px, 4vw, 54px);
-      line-height: 0.98;
-      letter-spacing: -0.03em;
-    }
-
-    .intro {
-      margin: 0 0 22px;
-      font-size: clamp(15px, 1.8vw, 18px);
-      color: var(--text-soft);
-      line-height: 1.8;
-      max-width: 62ch;
-    }
-
-    .guide-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-      margin-bottom: 22px;
-    }
-
-    .guide-card {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .guide-card strong {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 15px;
-    }
-
-    .guide-card p {
-      margin: 0;
-      font-size: 13px;
-      color: rgba(242, 246, 255, 0.7);
-      line-height: 1.7;
-    }
-
-    .actions {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    button {
-      appearance: none;
-      border: none;
-      cursor: pointer;
+    .settings { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-bottom: 20px; font-size: 14px; color: var(--text-soft); }
+    .settings label { display: inline-flex; align-items: center; gap: 8px; }
+    select {
       font: inherit;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 6px 10px;
     }
+    select option { background: #0b1630; }
+    input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--cyan); }
 
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    button { appearance: none; border: none; cursor: pointer; font: inherit; }
     .primary-btn {
       padding: 14px 20px;
       border-radius: 16px;
@@ -316,152 +213,133 @@
       background: linear-gradient(135deg, var(--cyan), #96fff8);
       font-weight: 800;
       box-shadow: 0 10px 30px rgba(89, 239, 255, 0.28);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
-
-    .primary-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 14px 34px rgba(89, 239, 255, 0.34);
-    }
-
+    .primary-btn:disabled { opacity: 0.6; cursor: progress; }
     .secondary-btn {
       padding: 14px 18px;
       border-radius: 16px;
       background: rgba(255, 255, 255, 0.06);
       color: var(--text);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .footnote {
-      margin-top: 14px;
-      font-size: 13px;
-      color: rgba(242, 246, 255, 0.56);
-      line-height: 1.7;
-    }
+    .footnote { margin-top: 14px; font-size: 13px; color: rgba(242, 246, 255, 0.56); line-height: 1.7; }
+    .error-note { margin-top: 12px; color: #ffacbb; font-size: 13px; line-height: 1.7; min-height: 22px; }
 
-    .error-note {
-      margin-top: 14px;
-      color: #ffacbb;
-      font-size: 13px;
-      line-height: 1.7;
-      min-height: 22px;
-    }
+    .result-score { font-size: clamp(44px, 7vw, 72px); font-weight: 900; color: var(--cyan); line-height: 1; margin: 4px 0 14px; }
+    .result-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .result-stats .glass-card { box-shadow: none; flex: 1 1 120px; }
+    .review { max-height: 36vh; overflow-y: auto; margin-bottom: 20px; display: grid; gap: 8px; }
+    .review-item { padding: 10px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border-left: 3px solid var(--lime); font-size: 14px; line-height: 1.6; }
+    .review-item.bad { border-left-color: var(--red); }
+    .review-item small { color: var(--text-soft); display: block; }
 
-    .top-right-tip {
+    /* ---------- Animated gesture tutorial ---------- */
+    .tutorial { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .demo { margin: 0; padding: 10px 10px 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); }
+    .demo.good { border-color: rgba(169, 255, 112, 0.28); }
+    .demo-svg { width: 100%; height: auto; display: block; }
+    .demo figcaption { font-size: 14px; color: var(--text-soft); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tag { font-weight: 800; font-size: 12px; padding: 3px 8px; border-radius: 99px; }
+    .tag.ok { color: #06101f; background: var(--lime); }
+    .tag.no { color: #fff; background: rgba(255, 101, 101, 0.75); }
+
+    .demo-svg .arm { fill: #2c4f86; }
+    .demo-svg .skin { fill: #f1c29a; stroke: #b9805a; stroke-width: 1.5; }
+    .demo-svg .laser { stroke: rgba(89, 239, 255, 0.75); stroke-width: 2.5; stroke-dasharray: 6 6; }
+    .demo-svg .t-disc { fill: hsl(190, 85%, 42%); stroke: #bff6ff; stroke-width: 2.5; }
+    .demo-svg .t-disc.idle { fill: hsl(318, 70%, 42%); stroke: #ffc4ec; }
+    .demo-svg .t-ring { fill: none; stroke: var(--lime); stroke-width: 3; opacity: 0; }
+    .demo-svg .t-label { fill: #fff; font: 900 20px Inter, sans-serif; text-anchor: middle; }
+    .demo-svg .lock { fill: none; stroke: var(--pink); stroke-width: 2.5; stroke-dasharray: 10 8; opacity: 0; }
+    .demo-svg .gain { fill: var(--lime); font: 900 18px Inter, sans-serif; text-anchor: middle; opacity: 0; }
+    .demo-svg .flash { fill: #ffe27a; stroke: #ff57c6; stroke-width: 2; opacity: 0; }
+    .demo-svg .arrow { fill: none; stroke: var(--amber); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+    .demo-svg .nofire { fill: rgba(242, 246, 255, 0.75); font: 800 14px Inter, "PingFang TC", sans-serif; text-anchor: middle; opacity: 0; }
+
+    .demo-svg .hand { transform-box: view-box; transform-origin: 80px 110px; }
+    .demo-svg .hand.flick { animation: hand-flick 3.2s infinite; }
+    .demo-svg .hand.slow { animation: hand-slow 4s ease-in-out infinite; }
+    .good .flash { animation: flash 3.2s infinite; }
+    .good .arrow { animation: arrow 3.2s infinite; }
+    .good .lock { animation: lock 3.2s infinite; }
+    .good .t-disc { transform-box: fill-box; transform-origin: center; animation: hit 3.2s infinite; }
+    .good .t-ring { transform-box: fill-box; transform-origin: center; animation: ring 3.2s infinite; }
+    .good .gain { animation: gain 3.2s infinite; }
+    .bad .nofire { animation: nofire 4s infinite; }
+
+    @keyframes hand-flick {
+      0%, 12% { transform: rotate(12deg); }
+      30%, 44% { transform: rotate(0deg); }
+      50% { transform: rotate(-30deg); }
+      60%, 100% { transform: rotate(0deg); }
+    }
+    /* Whole hand + arm slides up to aim at B (no wrist tilt) */
+    @keyframes hand-slow {
+      0%, 10% { transform: translateY(18px); }
+      55%, 88% { transform: translateY(-47px); }
+      100% { transform: translateY(18px); }
+    }
+    @keyframes arrow { 0%, 43% { opacity: 0; } 46%, 52% { opacity: 1; } 56%, 100% { opacity: 0; } }
+    @keyframes flash { 0%, 58% { opacity: 0; } 60%, 64% { opacity: 1; } 70%, 100% { opacity: 0; } }
+    @keyframes lock { 0%, 28% { opacity: 0; } 32%, 58% { opacity: 1; } 62%, 100% { opacity: 0; } }
+    @keyframes hit {
+      0%, 59% { fill: hsl(190, 85%, 42%); transform: scale(1); }
+      63% { fill: hsl(105, 80%, 48%); transform: scale(1.2); }
+      85% { fill: hsl(105, 80%, 48%); transform: scale(1); }
+      95%, 100% { fill: hsl(190, 85%, 42%); transform: scale(1); }
+    }
+    @keyframes ring { 0%, 59% { opacity: 0; transform: scale(1); } 61% { opacity: 1; transform: scale(1); } 80%, 100% { opacity: 0; transform: scale(2); } }
+    @keyframes gain { 0%, 60% { opacity: 0; transform: translateY(8px); } 65% { opacity: 1; } 85% { opacity: 1; transform: translateY(-6px); } 92%, 100% { opacity: 0; transform: translateY(-6px); } }
+    @keyframes nofire { 0%, 55% { opacity: 0; } 62%, 86% { opacity: 1; } 92%, 100% { opacity: 0; } }
+
+    .steps { list-style: none; padding: 0; margin: 0 0 10px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .step { font-size: 13px; line-height: 1.5; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); color: var(--text-soft); border: 1px solid transparent; animation: 3.2s infinite; }
+    .step b { display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 50%; background: rgba(89, 239, 255, 0.18); color: var(--cyan); font-size: 12px; }
+    .step.s1 { animation-name: step1; }
+    .step.s2 { animation-name: step2; }
+    .step.s3 { animation-name: step3; }
+    .step.s4 { animation-name: step4; }
+    @keyframes step1 { 0%, 12% { color: var(--text); border-color: rgba(89, 239, 255, 0.6); } 14%, 100% { color: var(--text-soft); border-color: transparent; } }
+    @keyframes step2 { 0%, 13% { color: var(--text-soft); border-color: transparent; } 15%, 43% { color: var(--text); border-color: rgba(89, 239, 255, 0.6); } 45%, 100% { color: var(--text-soft); border-color: transparent; } }
+    @keyframes step3 { 0%, 43% { color: var(--text-soft); border-color: transparent; } 45%, 54% { color: var(--text); border-color: rgba(255, 207, 112, 0.8); } 56%, 100% { color: var(--text-soft); border-color: transparent; } }
+    @keyframes step4 { 0%, 55% { color: var(--text-soft); border-color: transparent; } 57%, 92% { color: var(--text); border-color: rgba(169, 255, 112, 0.8); } 94%, 100% { color: var(--text-soft); border-color: transparent; } }
+    .tip { margin: 0 0 18px; font-size: 13px; color: rgba(242, 246, 255, 0.62); line-height: 1.7; }
+
+    .link-btn { background: none; border: none; padding: 0; color: var(--cyan); font: inherit; text-decoration: underline; cursor: pointer; }
+    .preview-tools { display: inline-flex; align-items: center; gap: 10px; }
+    .preview-shell { pointer-events: auto; }
+
+    .calib-panel {
       position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 5;
-      padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(7, 15, 32, 0.72);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: rgba(242, 246, 255, 0.72);
-      font-size: 12px;
-      line-height: 1.55;
-      max-width: min(34vw, 360px);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 12;
+      width: min(92vw, 460px);
+      padding: 22px 24px;
+      border-radius: 22px;
+      background: rgba(6, 13, 31, 0.94);
+      border: 1px solid rgba(89, 239, 255, 0.3);
       box-shadow: var(--shadow);
-      pointer-events: none;
+      text-align: center;
     }
-
-    .audio-toggle {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      transform: translateY(calc(100% + 12px));
-      z-index: 6;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(7, 15, 32, 0.82);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: var(--cyan);
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      cursor: pointer;
-      user-select: none;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: var(--shadow);
-      transition: color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
-    }
-
-    .audio-toggle:hover {
-      background: rgba(16, 28, 56, 0.92);
-    }
-
-    .audio-toggle.off {
-      color: rgba(242, 246, 255, 0.45);
-    }
-
-    .audio-toggle .audio-icon {
-      display: inline-grid;
-      place-items: center;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: rgba(89, 239, 255, 0.14);
-      font-size: 13px;
-      color: inherit;
-    }
-
-    .audio-toggle.off .audio-icon {
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    @media (max-width: 920px) {
-      .hud {
-        right: 20px;
-      }
-
-      .hud-row {
-        max-width: 78vw;
-      }
-
-      .preview-shell {
-        width: min(38vw, 320px);
-      }
-
-      .top-right-tip {
-        max-width: 42vw;
-      }
-    }
+    .calib-panel.hidden { display: none; }
+    .calib-panel .actions { justify-content: center; }
+    .calib-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .calib-help { margin: 0 0 14px; font-size: 14px; line-height: 1.7; color: var(--text-soft); }
+    .calib-dots { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+    .calib-dots span { width: 18px; height: 18px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); transition: background 0.2s ease; }
+    .calib-dots span.on { background: var(--lime); box-shadow: 0 0 12px rgba(169, 255, 112, 0.7); }
+    .calib-status { font-size: 15px; font-weight: 700; margin-bottom: 14px; min-height: 22px; }
 
     @media (max-width: 720px) {
-      .hud {
-        top: 12px;
-        left: 12px;
-        right: 12px;
-      }
-
-      .hud-row {
-        max-width: calc(100vw - 24px);
-      }
-
-      .glass-card {
-        min-width: 0;
-        flex: 1 1 0;
-      }
-
-      .preview-shell {
-        right: 12px;
-        bottom: 12px;
-        width: min(50vw, 270px);
-        min-width: 180px;
-      }
-
-      .top-right-tip {
-        display: none;
-      }
-
-      .panel {
-        padding: 22px;
-      }
+      .top-stack { top: 10px; left: 10px; right: 10px; gap: 8px; }
+      .glass-card { min-width: 0; flex: 1 1 0; padding: 8px 10px; }
+      .glass-card.grow { flex-basis: 100%; }
+      .preview-shell { width: 44vw; min-width: 150px; right: 10px; bottom: 10px; }
+      .preview-help { display: none; }
+      .panel { padding: 20px; }
     }
   </style>
 </head>
@@ -470,536 +348,1315 @@
     <canvas id="gameCanvas"></canvas>
     <video id="inputVideo" autoplay playsinline muted></video>
 
-    <div class="hud">
-      <div class="hud-row">
+    <div class="top-stack" id="topStack">
+      <div class="hud">
         <div class="glass-card">
           <div class="label">分數</div>
-          <div class="value" id="scoreValue">0000</div>
+          <div class="value accent-cyan" id="scoreValue">0</div>
         </div>
         <div class="glass-card">
-          <div class="label">命中率</div>
-          <div class="value" id="accuracyValue">0%</div>
+          <div class="label">題目</div>
+          <div class="value" id="progressValue">0 / 0</div>
         </div>
         <div class="glass-card">
-          <div class="label">命中 / 失手</div>
-          <div class="value small"><span class="accent-cyan" id="hitsValue">0</span> / <span class="accent-pink" id="missesValue">0</span></div>
+          <div class="label">連擊</div>
+          <div class="value accent-amber" id="comboValue">0</div>
         </div>
         <div class="glass-card">
+          <div class="label">答對 / 答錯</div>
+          <div class="value small"><span class="accent-lime" id="correctValue">0</span> / <span class="accent-pink" id="wrongValue">0</span></div>
+        </div>
+        <div class="glass-card grow">
           <div class="label">手勢狀態</div>
           <div class="value small" id="gestureValue">等待啟動</div>
-          <div class="status-text" id="hintValue">食指伸直、其餘手指收起，拇指張開後再往內扣扳機。</div>
+          <div class="status-text" id="hintValue">啟動相機後開始辨識手勢。</div>
+        </div>
+        <div class="audio-toggle" id="audioToggle" role="button" tabindex="0" aria-pressed="true" title="開關背景音樂 (M)">
+          <span id="audioIcon">♪</span><span id="audioLabel">音樂：開</span>
         </div>
       </div>
+
+      <div class="question-banner hidden" id="questionBanner">
+        <div class="q-meta"><span id="qIndex">第 1 題</span><span id="qTimer">20s</span></div>
+        <div class="q-text" id="qText">題目</div>
+        <div class="q-feedback" id="qFeedback"></div>
+        <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+      </div>
     </div>
 
-    <div class="top-right-tip">
-      玩法：以食指瞄準飛盤，<b>把食指快速向上一揚（像開槍後座）</b>就會發射；或保持手槍手勢，把拇指扣下也能射擊。準星會自動吸附附近目標。
-    </div>
-
-    <div class="audio-toggle" id="audioToggle" role="button" tabindex="0" aria-pressed="true" title="開關背景音樂">
-      <span class="audio-icon" id="audioIcon">♪</span>
-      <span id="audioLabel">音樂：開</span>
-    </div>
-
-    <div class="preview-shell">
+    <div class="preview-shell" id="previewShell">
       <div class="preview-head">
-        <span>手勢追蹤畫面</span>
-        <span class="preview-dot" id="previewDot"></span>
+        <span>手勢追蹤</span>
+        <span class="preview-tools"><button class="link-btn" id="logBtn2" title="下載最近 30 秒的手勢記錄">下載記錄</button><span class="preview-dot" id="previewDot"></span></span>
       </div>
       <canvas id="previewCanvas" width="320" height="240"></canvas>
-      <div class="preview-help" id="previewHelp">
-        相機待命中。啟動後會在這裡顯示手勢與骨架偵測結果。
-      </div>
+      <div class="preview-help" id="previewHelp">底部長條 = 上揚力度：滿格後把手指放回就會開火。差一點時會顯示提示。</div>
     </div>
 
+    <!-- Calibration -->
+    <div class="calib-panel hidden" id="calibPanel" role="dialog" aria-label="校準上揚">
+      <div class="eyebrow">校準上揚</div>
+      <div class="calib-title">對著鏡頭做 5 次上揚</div>
+      <p class="calib-help">擺出手槍手勢，手腕一抖讓食指快速往上一揚，再放回原位。用你平常玩的力度就可以，每次被記錄會「叮」一聲。</p>
+      <div class="calib-dots" id="calibDots"><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="calib-status" id="calibStatus"></div>
+      <div class="actions"><button class="secondary-btn" id="calibDone" data-mode="cancel">取消</button></div>
+    </div>
+
+    <!-- Start screen -->
     <div class="overlay" id="overlay">
       <div class="panel">
         <div class="eyebrow">HTML 手勢遊戲</div>
-        <h1>手勢飛盤射擊</h1>
+        <h1>手勢知識問答射擊</h1>
         <p class="intro">
-          這是一個以手勢控制的飛盤射擊遊戲。把手比成手槍，讓食指指向畫面中的飛盤，準星會自動磁吸附近目標；拇指往內扣一下，就會發射雷射並擊碎飛盤。
+          每題會出現四個答案飛盤。把手比成手槍，用食指對準你認為正確的答案，再把食指往上一揚開槍！答得越快分數越高。
         </p>
-        <div class="guide-grid">
-          <div class="guide-card">
-            <strong>1. 瞄準</strong>
-            <p>把手比成手槍，食指伸直指向飛盤。準星會自動磁吸附近目標。</p>
-          </div>
-          <div class="guide-card">
-            <strong>2A. 快速上揚（推薦）</strong>
-            <p>瞄準後把食指快速向上一揚，像真的開槍後座一樣，即會發射一發。這個手勢最穩定，就算手姿不完美也偵測得到。</p>
-          </div>
-          <div class="guide-card">
-            <strong>2B. 拇指扳機</strong>
-            <p>也可以保持手槍姿勢，拇指先張開讓槍上膛，再往掌心扣一下觸發射擊。重新張開拇指即可再次上膛。</p>
-          </div>
-          <div class="guide-card">
-            <strong>3. 目標</strong>
-            <p>飛盤會從四周邊界飛向中心，畫面會一直維持 4 個飛盤。擊碎一個就會立刻補一個。</p>
-          </div>
+        <div class="tutorial">
+          <figure class="demo good">
+            <svg class="demo-svg" viewBox="0 0 360 170" role="img" aria-label="手勢動畫：食指快速往上一揚再放回，就會開火命中答案">
+              <g class="target">
+                <circle class="t-ring" cx="318" cy="92" r="26" />
+                <circle class="t-disc" cx="318" cy="92" r="26" />
+                <text x="318" y="99" class="t-label">A</text>
+              </g>
+              <circle class="lock" cx="318" cy="92" r="34" />
+              <text class="gain" x="318" y="52">+100</text>
+              <rect class="arm" x="0" y="95" width="88" height="32" rx="14" />
+              <g class="hand flick">
+                <line class="laser" x1="202" y1="92" x2="318" y2="92" />
+                <rect class="skin" x="74" y="84" width="62" height="54" rx="18" />
+                <rect class="skin" x="126" y="100" width="20" height="12" rx="6" />
+                <rect class="skin" x="126" y="113" width="18" height="12" rx="6" />
+                <rect class="skin" x="124" y="126" width="15" height="11" rx="5.5" />
+                <rect class="skin" x="96" y="64" width="15" height="32" rx="7.5" transform="rotate(-25 103 80)" />
+                <rect class="skin" x="128" y="84" width="74" height="16" rx="8" />
+                <path class="flash" d="M206 92 l14 -9 -4 9 4 9 z M214 92 l16 0" />
+                <path class="arrow" d="M214 70 q10 -18 2 -34 m-9 6 l9 -6 4 10" />
+              </g>
+            </svg>
+            <figcaption><span class="tag ok">✓ 會開火</span>快速往上一揚，再放回原位</figcaption>
+          </figure>
+          <figure class="demo bad">
+            <svg class="demo-svg" viewBox="0 0 360 170" role="img" aria-label="手勢動畫：只是慢慢把手移上去瞄準，不會開火">
+              <g class="target">
+                <circle class="t-disc idle" cx="300" cy="45" r="24" />
+                <text x="300" y="52" class="t-label">B</text>
+              </g>
+              <text class="nofire" x="300" y="98">沒有開火</text>
+              <g class="hand slow">
+                <rect class="arm" x="0" y="95" width="88" height="32" rx="14" />
+                <line class="laser" x1="202" y1="92" x2="300" y2="92" />
+                <rect class="skin" x="74" y="84" width="62" height="54" rx="18" />
+                <rect class="skin" x="126" y="100" width="20" height="12" rx="6" />
+                <rect class="skin" x="126" y="113" width="18" height="12" rx="6" />
+                <rect class="skin" x="124" y="126" width="15" height="11" rx="5.5" />
+                <rect class="skin" x="96" y="64" width="15" height="32" rx="7.5" transform="rotate(-25 103 80)" />
+                <rect class="skin" x="128" y="84" width="74" height="16" rx="8" />
+              </g>
+            </svg>
+            <figcaption><span class="tag no">✗ 不會開火</span>移動手去瞄準（瞄準請移動整隻手，不用彎手腕）</figcaption>
+          </figure>
+        </div>
+        <ol class="steps">
+          <li class="step s1"><b>1</b>擺出手槍：食指伸直，其餘手指收起</li>
+          <li class="step s2"><b>2</b>移動整隻手，把準星對準答案</li>
+          <li class="step s3"><b>3</b>手腕一抖，食指快速往上一揚</li>
+          <li class="step s4"><b>4</b>放回原位 → 開火！</li>
+        </ol>
+        <p class="tip">小提示：準星跟著你的指節移動，所以請移動整隻手來瞄準；開槍時手腕一抖、食指上揚再放回就可以。命中位置以「上揚之前」的準星計算。答對 100 分，另有剩餘時間和連擊加分；打中空白處不扣分。</p>
+        <div class="settings">
+          <label>每回合題數
+            <select id="countSelect">
+              <option value="5">5 題</option>
+              <option value="10" selected>10 題</option>
+              <option value="15">15 題</option>
+              <option value="20">20 題</option>
+            </select>
+          </label>
+          <label>每題時間
+            <select id="timeSelect">
+              <option value="15">15 秒</option>
+              <option value="20" selected>20 秒</option>
+              <option value="30">30 秒</option>
+            </select>
+          </label>
+          <label>射擊靈敏度
+            <select id="sensSelect">
+              <option value="low">低（減少誤射）</option>
+              <option value="mid" selected>中（推薦）</option>
+              <option value="high">高（較易觸發，可能誤射）</option>
+              <option value="custom" id="sensCustom" disabled>我的校準（請先校準）</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="dwellCheck"> 準星停留 1.8 秒自動作答</label>
         </div>
         <div class="actions">
-          <button class="primary-btn" id="startBtn">啟動相機並開始遊戲</button>
-          <button class="secondary-btn" id="resumeAudioBtn">重新喚醒音效</button>
+          <button class="primary-btn" id="startBtn">啟動相機並開始</button>
+          <button class="secondary-btn" id="calibBtn">校準上揚（第一次建議先做）</button>
+          <button class="secondary-btn" id="mouseBtn">沒有相機？用滑鼠遊玩</button>
         </div>
         <div class="footnote">
-          需要相機權限。第一次載入會從 MediaPipe 下載手部辨識模型；若瀏覽器封鎖本機鏡頭，請改用本機 HTTP 伺服器開啟此檔案。
+          需要相機權限，請以 http://localhost 開啟（不要直接雙擊檔案）。第一次載入會下載 MediaPipe 手部模型。<br>
+          快捷鍵：<b>1–4 / A–D</b> 直接作答、<b>M</b> 音樂開關、<b>R</b> 重新開始、<b>Esc</b> 暫停。<br>
+          上揚經常不被接受或誤判？試玩一會後按 <button class="link-btn" id="logBtn">下載手勢記錄</button>，把檔案交給開發者分析。
         </div>
         <div class="error-note" id="errorNote"></div>
       </div>
     </div>
+
+    <!-- Result screen -->
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="panel">
+        <div class="eyebrow">回合結束</div>
+        <h1 id="resultTitle">做得好！</h1>
+        <div class="result-score" id="resultScore">0</div>
+        <div class="result-stats">
+          <div class="glass-card"><div class="label">答對</div><div class="value accent-lime" id="resultCorrect">0</div></div>
+          <div class="glass-card"><div class="label">正確率</div><div class="value" id="resultAccuracy">0%</div></div>
+          <div class="glass-card"><div class="label">最高連擊</div><div class="value accent-amber" id="resultCombo">0</div></div>
+        </div>
+        <div class="review" id="reviewList"></div>
+        <div class="actions">
+          <button class="primary-btn" id="againBtn">再玩一次</button>
+          <button class="secondary-btn" id="menuBtn">回主畫面</button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="questions.js"></script>
   <script type="module">
+    // ======================================================================
+    // Config
+    // ======================================================================
+    const CONFIG = {
+      hitPadding: 36,            // extra px around an answer disc that still counts as a hit
+      feedbackMs: 2000,
+      dwellMs: 1800,
+      shotCooldownMs: 260,
+      pistolGraceMs: 320,        // keep "pistol" pose alive briefly when tracking flickers
+      handSettleMs: 350,         // ignore flicks right after the hand appears: first frames are jumpy
+      lostResetMs: 300,          // tracking gaps shorter than this keep the flick history (motion blur)
+      // Flick = finger turns up relative to the wrist: big enough, snappy enough, wrist mostly still,
+      // then comes back (≥ ret of the excursion). Confirmed flickConfirmMs later unless it kept dropping
+      // below the start by more than flickMaxDrop × excursion (= aiming down at a lower answer).
+      flickRiseMaxMs: 300,
+      flickSnapMs: 150,
+      flickReturnMaxMs: 700,
+      flickConfirmMs: 90,
+      flickMaxDrop: 1.6,
+      flickRefractoryMs: 450,
+      // Thresholds never go below (measured frame-to-frame jitter × k).
+      noiseK: { play: { big: 4.5, snap: 3.2 }, calib: { big: 3.5, snap: 2.5 } },
+      noisyWarn: 0.06,
+      sensitivity: {
+        // tip: fingertip rise above the wrist (palm units) · pitch: finger angle rise (rad)
+        // snapTip / snapPitch: rise needed inside any 150 ms slice · snapFrac: share of the rise inside it
+        // ret: fraction it must come back
+        // wristSlack / wristRatio: how much the wrist may move (palm units, or × the finger's rise)
+        // (Thresholds are also raised automatically above the measured camera noise — see noiseK.)
+        low:  { tip: 0.34, pitch: 0.28, snapTip: 0.22, snapPitch: 0.19, snapFrac: 0.6, ret: 0.5, wristSlack: 0.4, wristRatio: 0.8 },
+        mid:  { tip: 0.26, pitch: 0.21, snapTip: 0.16, snapPitch: 0.14, snapFrac: 0.5, ret: 0.45, wristSlack: 0.45, wristRatio: 0.9 },
+        high: { tip: 0.2, pitch: 0.16, snapTip: 0.12, snapPitch: 0.1, snapFrac: 0.45, ret: 0.4, wristSlack: 0.5, wristRatio: 1.0 }
+      },
+      // Loose rules used only while calibrating (the player is told to flick, so we just measure them).
+      calibrationProbe: { tip: 0.2, pitch: 0.16, snapTip: 0.1, snapPitch: 0.09, snapFrac: 0.4, ret: 0.4, wristSlack: 0.8, wristRatio: 2 },
+      // Loosest values calibration may choose (≈ "high"): looser than this and camera jitter or hand moves fire.
+      calibrationFloor: { tip: 0.2, pitch: 0.16, snapTip: 0.12, snapPitch: 0.1, snapFrac: 0.45, ret: 0.4, wristSlack: 0.6, wristRatio: 1.1 }
+    };
+
+    const ANSWER_HUES = [190, 318, 42, 128];
+    const LABELS = ["A", "B", "C", "D"];
     const HAND_CONNECTIONS = [
-      [0, 1], [1, 2], [2, 3], [3, 4],
-      [0, 5], [5, 6], [6, 7], [7, 8],
-      [5, 9], [9, 10], [10, 11], [11, 12],
-      [9, 13], [13, 14], [14, 15], [15, 16],
-      [13, 17], [17, 18], [18, 19], [19, 20],
-      [0, 17]
+      [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]
     ];
 
-    const canvas = document.getElementById("gameCanvas");
+    // ======================================================================
+    // DOM
+    // ======================================================================
+    const $ = (id) => document.getElementById(id);
+    const canvas = $("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const video = document.getElementById("inputVideo");
-    const previewCanvas = document.getElementById("previewCanvas");
+    const video = $("inputVideo");
+    const previewCanvas = $("previewCanvas");
     const previewCtx = previewCanvas.getContext("2d");
+    const overlay = $("overlay");
+    const resultOverlay = $("resultOverlay");
+    const startBtn = $("startBtn");
+    const mouseBtn = $("mouseBtn");
+    const errorNote = $("errorNote");
+    const previewDot = $("previewDot");
+    const audioToggle = $("audioToggle");
+    const topStack = $("topStack");
+    const previewShell = $("previewShell");
+    const banner = $("questionBanner");
+    const calibPanel = $("calibPanel");
 
-    const overlay = document.getElementById("overlay");
-    const startBtn = document.getElementById("startBtn");
-    const resumeAudioBtn = document.getElementById("resumeAudioBtn");
-    const errorNote = document.getElementById("errorNote");
-    const previewHelp = document.getElementById("previewHelp");
-    const previewDot = document.getElementById("previewDot");
-    const audioToggle = document.getElementById("audioToggle");
-    const audioLabel = document.getElementById("audioLabel");
-    const audioIcon = document.getElementById("audioIcon");
-
-    const scoreValue = document.getElementById("scoreValue");
-    const accuracyValue = document.getElementById("accuracyValue");
-    const hitsValue = document.getElementById("hitsValue");
-    const missesValue = document.getElementById("missesValue");
-    const gestureValue = document.getElementById("gestureValue");
-    const hintValue = document.getElementById("hintValue");
-
+    // ======================================================================
+    // State
+    // ======================================================================
     const state = {
       width: window.innerWidth,
       height: window.innerHeight,
-      center: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
       running: false,
+      paused: true,
       lastFrameTime: 0,
       lastVideoTime: -1,
       handLandmarker: null,
-      handReady: false,
-      visionLoaded: false,
       stream: null,
+      cameraOn: false,
       handSeen: false,
+      lastHandAt: 0,
+      lastMouseAt: 0,
+      mouse: { x: 0, y: 0 },
+      settings: { count: 10, time: 20, sens: "mid", dwell: false },
+      handSinceAt: 0,
+      shotNote: { text: "", until: 0 },
+
       audioContext: null,
       noiseBuffer: null,
       sfxGain: null,
       musicGain: null,
       musicEnabled: true,
       ambientStarted: false,
-      ambientNodes: [],
-      ambientStepTimer: null,
-      shotCooldownMs: 150,
+
       lastShotAt: 0,
-      score: 0,
-      hits: 0,
-      misses: 0,
-      enemies: [],
+      targets: [],
+      targetSeed: 1,
       particles: [],
       floaters: [],
       impacts: [],
       stars: [],
-      enemyIdSeed: 1,
+      aimHistory: [],
+      layout: null,
+
       hand: {
         rawAim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
         aim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-        origin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 },
-        rawOrigin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 },
+        rawOrigin: { x: window.innerWidth / 2, y: window.innerHeight },
+        origin: { x: window.innerWidth / 2, y: window.innerHeight },
         active: false,
         lockId: null,
-        lockStrength: 0,
-        shotFlash: 0,
-        lastKnownAim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
-        lastKnownOrigin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 }
+        shotFlash: 0
       },
-      gesture: {
-        label: "等待啟動",
-        detail: "啟動相機後開始辨識手部姿勢。",
-        armed: false,
-        thumbState: "unknown",
-        pistolGrace: 0,
-        lastLockId: null,
-        indexHistory: [],
-        flickArmed: true,
-        lastFlickAt: 0,
-        lastShotMethod: ""
-      }
+
+      // per-frame analysis + trigger state machines
+      pose: null,
+      flick: { hist: [], raw: [], noiseR: 0.02, noiseP: 0.02, lastAt: -1e9, score: 0, cand: null, attempt: null, palm: 0, reject: null },
+      calibrating: null,
+      calib: null,
+      attemptLog: [],
+      recording: [],
+      dwell: { id: null, ms: 0 },
+      lastShotMethod: "",
+      gestureText: { label: "", detail: "" },
+
+      quiz: null
     };
 
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
+    // ======================================================================
+    // Math helpers
+    // ======================================================================
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const dist2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+    const rand = (a, b) => Math.random() * (b - a) + a;
+    const median = (arr) => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
     }
 
-    function lerp(a, b, t) {
-      return a + (b - a) * t;
+    // One-Euro filter: low jitter when still, low lag when moving fast.
+    class OneEuro {
+      constructor(minCutoff = 1.4, beta = 0.006, dCutoff = 1.0) {
+        this.minCutoff = minCutoff; this.beta = beta; this.dCutoff = dCutoff; this.reset();
+      }
+      reset() { this.x = null; this.dx = 0; this.lastT = null; }
+      static alpha(cutoff, dt) { const tau = 1 / (2 * Math.PI * cutoff); return 1 / (1 + tau / dt); }
+      filter(value, tMs) {
+        if (this.x === null || this.lastT === null) { this.x = value; this.lastT = tMs; return value; }
+        const dt = Math.max((tMs - this.lastT) / 1000, 1e-3);
+        this.lastT = tMs;
+        const d = (value - this.x) / dt;
+        this.dx = lerp(this.dx, d, OneEuro.alpha(this.dCutoff, dt));
+        const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
+        this.x = lerp(this.x, value, OneEuro.alpha(cutoff, dt));
+        return this.x;
+      }
     }
+    const aimFilter = { x: new OneEuro(), y: new OneEuro(), ox: new OneEuro(1, 0.004), oy: new OneEuro(1, 0.004) };
 
-    function distance(a, b) {
-      return Math.hypot(a.x - b.x, a.y - b.y);
-    }
-
-    function normalize(vector) {
-      const length = Math.hypot(vector.x, vector.y) || 1;
-      return { x: vector.x / length, y: vector.y / length };
-    }
-
-    function pointFromLandmark(lm) {
-      return {
-        x: (1 - lm.x) * state.width,
-        y: lm.y * state.height
-      };
-    }
-
-    function smallPointFromLandmark(lm) {
-      return {
-        x: (1 - lm.x) * previewCanvas.width,
-        y: lm.y * previewCanvas.height
-      };
-    }
-
-    function randomRange(min, max) {
-      return Math.random() * (max - min) + min;
-    }
-
-    function updateHud() {
-      scoreValue.textContent = String(state.score).padStart(4, "0");
-      hitsValue.textContent = String(state.hits);
-      missesValue.textContent = String(state.misses);
-      const totalShots = state.hits + state.misses;
-      const accuracy = totalShots ? Math.round((state.hits / totalShots) * 100) : 0;
-      accuracyValue.textContent = `${accuracy}%`;
-      const stateLabel = state.gesture.thumbState === "open"
-        ? "● 已上膛"
-        : state.gesture.thumbState === "pulled"
-          ? "○ 等待張開"
-          : "◌ 待辨識";
-      gestureValue.textContent = `${state.gesture.label}　${stateLabel}`;
-      hintValue.textContent = state.gesture.detail;
-    }
-
+    // ======================================================================
+    // Layout
+    // ======================================================================
     function resizeCanvas() {
       state.width = window.innerWidth;
       state.height = window.innerHeight;
-      state.center.x = state.width / 2;
-      state.center.y = state.height / 2;
-
       const ratio = window.devicePixelRatio || 1;
       canvas.width = Math.floor(state.width * ratio);
       canvas.height = Math.floor(state.height * ratio);
-      canvas.style.width = `${state.width}px`;
-      canvas.style.height = `${state.height}px`;
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-      if (!state.stars.length) {
-        state.stars = Array.from({ length: 90 }, () => ({
-          x: Math.random() * state.width,
-          y: Math.random() * state.height,
-          r: Math.random() * 1.7 + 0.2,
-          speed: Math.random() * 12 + 8,
-          alpha: Math.random() * 0.7 + 0.1
-        }));
-      }
-
-      state.hand.rawAim.x = clamp(state.hand.rawAim.x, 0, state.width);
-      state.hand.rawAim.y = clamp(state.hand.rawAim.y, 0, state.height);
-      state.hand.aim.x = clamp(state.hand.aim.x, 0, state.width);
-      state.hand.aim.y = clamp(state.hand.aim.y, 0, state.height);
-      state.hand.origin.x = clamp(state.hand.origin.x, 0, state.width);
-      state.hand.origin.y = clamp(state.hand.origin.y, 0, state.height);
-      state.hand.rawOrigin.x = clamp(state.hand.rawOrigin.x, 0, state.width);
-      state.hand.rawOrigin.y = clamp(state.hand.rawOrigin.y, 0, state.height);
-    }
-
-    function initStars() {
       state.stars = Array.from({ length: 90 }, () => ({
         x: Math.random() * state.width,
         y: Math.random() * state.height,
-        r: Math.random() * 1.7 + 0.2,
-        speed: Math.random() * 12 + 8,
-        alpha: Math.random() * 0.7 + 0.1
+        r: Math.random() * 1.6 + 0.2,
+        speed: Math.random() * 12 + 6,
+        alpha: Math.random() * 0.6 + 0.1
       }));
+      computeLayout();
+      for (const t of state.targets) placeTarget(t);
     }
 
-    function spawnEnemy() {
-      const margin = 80;
-      const side = Math.floor(Math.random() * 4);
-      let x = 0;
-      let y = 0;
-
-      if (side === 0) {
-        x = randomRange(0, state.width);
-        y = -margin;
-      } else if (side === 1) {
-        x = state.width + margin;
-        y = randomRange(0, state.height);
-      } else if (side === 2) {
-        x = randomRange(0, state.width);
-        y = state.height + margin;
-      } else {
-        x = -margin;
-        y = randomRange(0, state.height);
-      }
-
-      const toCenter = normalize({
-        x: state.center.x - x + randomRange(-90, 90),
-        y: state.center.y - y + randomRange(-90, 90)
-      });
-
-      return {
-        id: state.enemyIdSeed++,
-        x,
-        y,
-        radius: randomRange(28, 42),
-        vx: toCenter.x * randomRange(90, 150),
-        vy: toCenter.y * randomRange(90, 150),
-        hue: randomRange(175, 335),
-        spin: randomRange(-2.2, 2.2),
-        rotation: randomRange(0, Math.PI * 2),
-        wobbleSeed: Math.random() * Math.PI * 2
+    // Arena = the free space below the HUD/question and left of the camera preview.
+    function computeLayout() {
+      const top = topStack.getBoundingClientRect().bottom + 14;
+      const pv = previewShell.getBoundingClientRect();
+      const left = 16;
+      let right = state.width - 16;
+      const bottom = state.height - 16;
+      // Only shrink width if preview would eat into the lower half of the arena.
+      if (pv.width && pv.left > state.width * 0.5) right = Math.min(right, pv.left - 12);
+      const w = Math.max(200, right - left);
+      const h = Math.max(200, bottom - top);
+      const radius = clamp(Math.min(w / 4.8, h / 4.9), 50, 124);
+      state.layout = {
+        left, top, w, h, radius,
+        anchors: [
+          { x: left + w * 0.27, y: top + h * 0.26 },
+          { x: left + w * 0.73, y: top + h * 0.26 },
+          { x: left + w * 0.27, y: top + h * 0.75 },
+          { x: left + w * 0.73, y: top + h * 0.75 }
+        ]
       };
     }
 
-    function ensureEnemyCount() {
-      while (state.enemies.length < 4) {
-        state.enemies.push(spawnEnemy());
+    function placeTarget(t) {
+      const L = state.layout;
+      t.ax = L.anchors[t.idx].x;
+      t.ay = L.anchors[t.idx].y;
+      t.radius = L.radius;
+      t.drift = L.radius * 0.22;
+      layoutTargetText(t);
+    }
+
+    function layoutTargetText(t) {
+      const maxW = t.radius * 1.5;
+      const maxH = t.radius * 1.15;
+      for (let size = Math.round(t.radius * 0.34); size >= 12; size -= 1) {
+        ctx.font = `800 ${size}px Inter, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+        const lines = wrapText(t.text, maxW);
+        if (lines.length <= 4 && lines.length * size * 1.18 <= maxH) {
+          t.fontSize = size; t.lines = lines; return;
+        }
       }
+      t.fontSize = 12;
+      t.lines = wrapText(t.text, maxW).slice(0, 4);
     }
 
-    function createFloatingText(text, x, y, color) {
-      state.floaters.push({
-        text,
-        x,
-        y,
-        vx: randomRange(-18, 18),
-        vy: randomRange(-70, -40),
-        life: 0.9,
-        maxLife: 0.9,
-        color,
-        scale: randomRange(0.96, 1.12)
-      });
-    }
-
-    function createImpact(x, y, color = "rgba(89, 239, 255, 0.95)") {
-      state.impacts.push({
-        x,
-        y,
-        radius: 16,
-        life: 0.32,
-        maxLife: 0.32,
-        color
-      });
-    }
-
-    function createShatter(enemy) {
-      const shardCount = Math.round(enemy.radius * 0.7);
-      for (let i = 0; i < shardCount; i++) {
-        const angle = (Math.PI * 2 * i) / shardCount + randomRange(-0.18, 0.18);
-        const speed = randomRange(70, 240);
-        state.particles.push({
-          x: enemy.x,
-          y: enemy.y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: randomRange(0.28, 0.58),
-          maxLife: randomRange(0.28, 0.58),
-          size: randomRange(2, 5),
-          hue: enemy.hue
-        });
+    // CJK-friendly wrap: break per character, but keep latin words together where possible.
+    function wrapText(text, maxW) {
+      const tokens = text.match(/[A-Za-z0-9.,°%₂()'’\-]+|\s+|./gu) || [];
+      const lines = [];
+      let line = "";
+      for (const tok of tokens) {
+        const test = line + tok;
+        if (ctx.measureText(test).width > maxW && line.trim()) {
+          lines.push(line.trim());
+          line = tok.trim() ? tok : "";
+        } else {
+          line = test;
+        }
       }
-
-      createImpact(enemy.x, enemy.y, `hsla(${enemy.hue}, 100%, 70%, 0.95)`);
-      createFloatingText("HIT", enemy.x, enemy.y - enemy.radius * 0.8, "#9cf9ff");
-      playHitSound();
+      if (line.trim()) lines.push(line.trim());
+      return lines;
     }
 
-    function createMissEffect(x, y) {
-      createImpact(x, y, "rgba(255, 101, 101, 0.9)");
-      createFloatingText("MISS", x, y - 8, "#ffb0c0");
-      playMissSound();
+    // ======================================================================
+    // Quiz flow
+    // ======================================================================
+    function prepareQuestion(raw) {
+      const order = shuffle(raw.options.map((_, i) => i));
+      return { q: raw.q, options: order.map((i) => raw.options[i]), answer: order.indexOf(raw.answer) };
     }
 
-    function removeEnemy(enemyId) {
-      const index = state.enemies.findIndex((enemy) => enemy.id === enemyId);
-      if (index >= 0) {
-        state.enemies.splice(index, 1);
+    function startRound() {
+      const bank = Array.isArray(window.QUIZ_QUESTIONS) ? window.QUIZ_QUESTIONS : [];
+      if (!bank.length) {
+        errorNote.textContent = "找不到題庫（questions.js）。";
+        return false;
       }
+      const list = shuffle(bank.slice()).slice(0, Math.min(state.settings.count, bank.length)).map(prepareQuestion);
+      state.quiz = {
+        list, index: -1, phase: "question", current: null,
+        score: 0, correct: 0, wrong: 0, combo: 0, bestCombo: 0,
+        timeLeft: 0, feedbackLeft: 0, lastTick: 99, review: []
+      };
+      state.particles.length = 0;
+      state.floaters.length = 0;
+      state.impacts.length = 0;
+      banner.classList.remove("hidden");
+      nextQuestion();
+      return true;
     }
 
-    function shoot() {
-      const now = performance.now();
-      if (now - state.lastShotAt < state.shotCooldownMs) {
+    function nextQuestion() {
+      const quiz = state.quiz;
+      quiz.index += 1;
+      if (quiz.index >= quiz.list.length) {
+        finishRound();
         return;
       }
+      quiz.current = quiz.list[quiz.index];
+      quiz.phase = "question";
+      quiz.timeLeft = state.settings.time;
+      quiz.lastTick = 99;
+      state.dwell = { id: null, ms: 0 };
 
+      $("qIndex").textContent = `第 ${quiz.index + 1} / ${quiz.list.length} 題`;
+      $("qText").textContent = quiz.current.q;
+      setFeedback("", "");
+      banner.classList.remove("correct", "wrong");
+
+      computeLayout();
+      state.targets = quiz.current.options.map((text, idx) => {
+        const t = {
+          id: state.targetSeed++, idx, label: LABELS[idx], text,
+          x: 0, y: 0, ax: 0, ay: 0, radius: 60, drift: 10,
+          hue: ANSWER_HUES[idx], seed: rand(0, Math.PI * 2),
+          status: "idle", born: performance.now(), pop: 0
+        };
+        placeTarget(t);
+        t.x = t.ax; t.y = t.ay;
+        return t;
+      });
+      updateHud();
+    }
+
+    function setFeedback(text, cls) {
+      const el = $("qFeedback");
+      el.textContent = text;
+      el.className = `q-feedback ${cls}`;
+    }
+
+    function resolveAnswer(target, how) {
+      const quiz = state.quiz;
+      if (!quiz || quiz.phase !== "question") return;
+      const q = quiz.current;
+      const isCorrect = target && target.idx === q.answer;
+      const correctTarget = state.targets.find((t) => t.idx === q.answer);
+
+      for (const t of state.targets) {
+        t.status = t.idx === q.answer ? "correct" : (target && t.id === target.id ? "wrong" : "dim");
+        t.pop = 1;
+      }
+
+      if (isCorrect) {
+        quiz.combo += 1;
+        quiz.bestCombo = Math.max(quiz.bestCombo, quiz.combo);
+        quiz.correct += 1;
+        const gain = 100 + Math.round(quiz.timeLeft * 5) + (quiz.combo - 1) * 20;
+        quiz.score += gain;
+        burst(target, `+${gain}`);
+        setFeedback(quiz.combo > 1 ? `答對了！+${gain}　${quiz.combo} 連擊 🔥` : `答對了！+${gain}`, "good");
+        banner.classList.add("correct");
+        playCorrectSound();
+      } else {
+        quiz.combo = 0;
+        quiz.wrong += 1;
+        const ans = `${correctTarget.label}. ${correctTarget.text}`;
+        if (target) {
+          createImpact(target.x, target.y, "rgba(255, 101, 101, 0.95)");
+          createFloatingText("✗", target.x, target.y - target.radius, "#ffb0c0");
+          setFeedback(`答錯了，正確答案是 ${ans}`, "bad");
+        } else {
+          setFeedback(`時間到！正確答案是 ${ans}`, "bad");
+        }
+        banner.classList.add("wrong");
+        playWrongSound();
+      }
+
+      quiz.review.push({
+        q: q.q,
+        chosen: target ? target.text : null,
+        answer: q.options[q.answer],
+        correct: isCorrect,
+        how
+      });
+      quiz.phase = "feedback";
+      quiz.feedbackLeft = CONFIG.feedbackMs / 1000;
+      updateHud();
+    }
+
+    function finishRound() {
+      const quiz = state.quiz;
+      quiz.phase = "finished";
+      state.targets = [];
+      banner.classList.add("hidden");
+      const total = quiz.list.length;
+      const acc = total ? Math.round((quiz.correct / total) * 100) : 0;
+      $("resultTitle").textContent = acc === 100 ? "滿分！神槍手 🎯" : acc >= 70 ? "做得好！" : acc >= 40 ? "不錯，繼續加油！" : "再接再厲！";
+      $("resultScore").textContent = String(quiz.score);
+      $("resultCorrect").textContent = `${quiz.correct} / ${total}`;
+      $("resultAccuracy").textContent = `${acc}%`;
+      $("resultCombo").textContent = String(quiz.bestCombo);
+      const list = $("reviewList");
+      list.innerHTML = "";
+      quiz.review.forEach((r, i) => {
+        const item = document.createElement("div");
+        item.className = `review-item${r.correct ? "" : " bad"}`;
+        const head = document.createElement("div");
+        head.textContent = `${i + 1}. ${r.q}`;
+        const sub = document.createElement("small");
+        sub.textContent = r.correct
+          ? `✓ ${r.answer}`
+          : `✗ 你的答案：${r.chosen ?? "（時間到）"}　正確答案：${r.answer}`;
+        item.append(head, sub);
+        list.append(item);
+      });
+      resultOverlay.classList.remove("hidden");
+      state.paused = true;
+      playFinishSound();
+    }
+
+    function updateQuiz(dt) {
+      const quiz = state.quiz;
+      if (!quiz || state.paused) return;
+      if (quiz.phase === "question") {
+        quiz.timeLeft = Math.max(0, quiz.timeLeft - dt);
+        const secs = Math.ceil(quiz.timeLeft);
+        $("qTimer").textContent = `${secs}s`;
+        const fill = $("timerFill");
+        fill.style.transform = `scaleX(${quiz.timeLeft / state.settings.time})`;
+        fill.classList.toggle("urgent", quiz.timeLeft <= 5);
+        if (secs <= 5 && secs < quiz.lastTick && secs > 0) { quiz.lastTick = secs; playTickSound(); }
+        if (quiz.timeLeft <= 0) resolveAnswer(null, "timeout");
+        else updateDwell(dt);
+      } else if (quiz.phase === "feedback") {
+        quiz.feedbackLeft -= dt;
+        if (quiz.feedbackLeft <= 0) nextQuestion();
+      }
+    }
+
+    function updateDwell(dt) {
+      if (!state.settings.dwell) return;
+      const id = state.hand.lockId;
+      if (id === null) { state.dwell = { id: null, ms: 0 }; return; }
+      if (state.dwell.id !== id) state.dwell = { id, ms: 0 };
+      state.dwell.ms += dt * 1000;
+      if (state.dwell.ms >= CONFIG.dwellMs) {
+        const target = state.targets.find((t) => t.id === id);
+        state.dwell = { id: null, ms: 0 };
+        if (target) {
+          state.hand.shotFlash = 1;
+          playGunshotSound();
+          resolveAnswer(target, "dwell");
+        }
+      }
+    }
+
+    // ======================================================================
+    // Shooting
+    // ======================================================================
+    function aimAt(t) {
+      const hist = state.aimHistory;
+      for (let i = hist.length - 1; i >= 0; i--) {
+        if (hist[i].t <= t) return hist[i];
+      }
+      return hist[0] || { x: state.hand.aim.x, y: state.hand.aim.y, lockId: state.hand.lockId };
+    }
+
+    function targetAtPoint(p) {
+      let best = null;
+      let bestD = Infinity;
+      for (const t of state.targets) {
+        const d = dist2(p, t);
+        if (d <= t.radius + CONFIG.hitPadding && d < bestD) { best = t; bestD = d; }
+      }
+      return best;
+    }
+
+    function shoot(method, aimT) {
+      const now = performance.now();
+      if (now - state.lastShotAt < CONFIG.shotCooldownMs) return;
       state.lastShotAt = now;
+      state.lastShotMethod = method;
       state.hand.shotFlash = 1;
       playGunshotSound();
 
-      const aimPoint = { x: state.hand.aim.x, y: state.hand.aim.y };
-      let hitTarget = null;
-      let bestScore = Infinity;
+      // Rewind: a flick jerks the fingertip, so judge where the player was aiming
+      // just *before* the flick started.
+      const snap = aimAt(aimT ?? now);
+      const point = { x: snap.x, y: snap.y };
+      let target = (snap.lockId !== null && state.targets.find((t) => t.id === snap.lockId)) || targetAtPoint(point);
+      if (!target && aimT === undefined) target = targetAtPoint(state.hand.aim);
 
-      for (const enemy of state.enemies) {
-        const dist = distance(aimPoint, enemy);
-        const threshold = enemy.radius + 24;
-        if (dist <= threshold) {
-          const score = dist - enemy.radius * 0.4;
-          if (score < bestScore) {
-            bestScore = score;
-            hitTarget = enemy;
-          }
+      const quiz = state.quiz;
+      if (!quiz || quiz.phase !== "question") {
+        createImpact(point.x, point.y);
+        return;
+      }
+      if (!target) {
+        createImpact(point.x, point.y, "rgba(255, 255, 255, 0.6)");
+        createFloatingText("MISS", point.x, point.y - 10, "#c8d2ea");
+        return;
+      }
+      resolveAnswer(target, method);
+    }
+
+    // ======================================================================
+    // Hand analysis (3D world landmarks → robust to finger foreshortening)
+    // ======================================================================
+    function extension3(W, [m, p, d, t]) {
+      const total = dist3(W[m], W[p]) + dist3(W[p], W[d]) + dist3(W[d], W[t]);
+      return dist3(W[t], W[m]) / Math.max(total, 1e-6);
+    }
+
+    function analyzeHand(W, L) {
+      const idx = extension3(W, [5, 6, 7, 8]);
+      const mid = extension3(W, [9, 10, 11, 12]);
+      const ring = extension3(W, [13, 14, 15, 16]);
+      const pinky = extension3(W, [17, 18, 19, 20]);
+      const curled = [mid, ring, pinky].filter((v) => v < 0.8).length;
+      const indexOut = idx > 0.72;
+      const pistol = indexOut && curled >= 2;
+
+      // Index pitch (radians, up = positive), measured in 3D so it works when pointing at the camera.
+      const v = { x: W[8].x - W[5].x, y: W[8].y - W[5].y, z: W[8].z - W[5].z };
+      const pitch = Math.atan2(-v.y, Math.hypot(v.x, v.z));
+
+      // Image positions + palm size (for normalising movement into "palm units").
+      const palm2 = Math.max(dist2(L[0], L[9]), 0.01);
+      return { idx, curled, indexOut, pistol, pitch, tipX: L[8].x, tipY: L[8].y, wristX: L[0].x, wristY: L[0].y, palm2 };
+    }
+
+    // ----------------------------------------------------------------------
+    // Flick ("recoil") detector.
+    // A flick = the finger rotates up *around the wrist* (fingertip rises relative to the wrist, or the
+    // 3D finger angle rises), fast, and then comes back most of the way. The wrist itself barely moves.
+    // Moving the hand to another answer moves the wrist with it, so even an up-then-down scan between
+    // answers does not fire. Tracking dropouts (motion blur) keep the history.
+    // ----------------------------------------------------------------------
+    function resetFlick() {
+      const f = state.flick;
+      f.hist.length = 0;
+      f.score = 0;
+      f.cand = null;
+      f.attempt = null;
+      f.raw = [];
+    }
+
+    // Effective thresholds: a sensitivity preset, or the player's own calibration.
+    function flickParams() {
+      if (state.calibrating) return CONFIG.calibrationProbe;
+      if (state.settings.sens === "custom" && state.calib) return state.calib;
+      return CONFIG.sensitivity[state.settings.sens] || CONFIG.sensitivity.mid;
+    }
+
+    // For one channel: the biggest fast rise in the window (base b → peak p within flickRiseMaxMs),
+    // its "snap" (largest rise inside any 150 ms slice — robust to frame rate and tracking lag),
+    // the whole excursion, and how far it has come back since the top.
+    function spike(hist, key, thr, t) {
+      let best = null;
+      for (let i = 0; i < hist.length; i++) {
+        const v = hist[i][key];
+        if (v === null || t - hist[i].t > CONFIG.flickReturnMaxMs) continue;
+        let b = i;
+        for (let j = i; j >= 0 && hist[i].t - hist[j].t <= CONFIG.flickRiseMaxMs; j--) {
+          const u = hist[j][key];
+          if (u !== null && u < hist[b][key]) b = j;
+        }
+        const rise = v - hist[b][key];
+        if (!best || rise > best.rise) best = { p: i, b, rise };
+      }
+      if (!best) return { score: 0, rise: 0, back: 0, excursion: 0, snap: 0 };
+      let top = hist[best.p][key];
+      let last = null;
+      for (let k = best.p; k < hist.length; k++) {
+        const v = hist[k][key];
+        if (v === null) continue;
+        if (v > top) top = v;
+        last = hist[k];
+      }
+      let start = hist[best.b][key];
+      for (let j = best.b; j >= 0 && hist[best.p].t - hist[j].t <= 800; j--) {
+        const u = hist[j][key];
+        if (u !== null && u < start) start = u;
+      }
+      let snap = 0;
+      for (let k = best.b; k <= best.p; k++) {
+        const v = hist[k][key];
+        if (v === null) continue;
+        for (let j = k; j >= best.b && hist[k].t - hist[j].t <= CONFIG.flickSnapMs; j--) {
+          const u = hist[j][key];
+          if (u !== null) snap = Math.max(snap, v - u);
         }
       }
+      return {
+        score: best.rise / thr, rise: best.rise, snap,
+        excursion: top - start, back: last ? top - last[key] : 0, p: best.p, b: best.b
+      };
+    }
 
-      if (hitTarget) {
-        state.hits += 1;
-        state.score += 100;
-        createShatter(hitTarget);
-        removeEnemy(hitTarget.id);
-        ensureEnemyCount();
+    // Measure both channels and every rule, so the same numbers drive firing, hints, calibration and logs.
+    function measureFlick(t, P) {
+      const H = state.flick.hist;
+      const rel = spike(H, "r", P.tip, t);
+      const pit = spike(H, "pitch", P.pitch, t);
+      const judge = (x, snapThr, isPitch) => {
+        if (!x.excursion && !x.rise) return null;
+        const relRise = H[x.p].r - H[x.b].r;
+        const wristMove = Math.hypot(H[x.p].w - H[x.b].w, H[x.p].wh - H[x.b].wh);
+        const checks = {
+          big: x.score >= 1,
+          snap: x.snap >= snapThr && x.snap >= x.rise * P.snapFrac,
+          returned: x.excursion > 0 && x.back >= x.excursion * P.ret,
+          wrist: wristMove <= Math.max(P.wristSlack, Math.max(relRise, 0) * P.wristRatio),
+          tipMoved: !isPitch || relRise >= 0.08
+        };
+        return { x, checks, relRise, wristMove, ok: Object.values(checks).every(Boolean), aimT: H[x.b].t - 30 };
+      };
+      return { rel: judge(rel, P.snapTip, false), pit: judge(pit, P.snapPitch, true), relSpike: rel, pitSpike: pit };
+    }
+
+    const FLICK_REASONS = {
+      big: "上揚幅度不夠，再大一點",
+      snap: "上揚要更快、更乾脆（像開槍後座）",
+      returned: "上揚後要把手指放回原位",
+      wrist: "整隻手移動太多：只用手腕和手指上揚",
+      tipMoved: "指尖幾乎沒動：上揚時食指要往上指"
+    };
+
+    function evaluateFlick(t) {
+      const f = state.flick;
+      const H = f.hist;
+      if (H.length < 3) return null;
+      const P = noiseAdjusted(flickParams());
+      const m = measureFlick(t, P);
+      f.score = Math.max(m.relSpike.score, m.pitSpike.score);
+
+      // 1) A pending candidate is confirmed ~90 ms later unless the finger kept dropping well below
+      //    where it started (that's aiming down at a lower answer, not a recoil).
+      if (f.cand) {
+        if (t - f.cand.at < CONFIG.flickConfirmMs) return null;
+        const c = f.cand;
+        f.cand = null;
+        const x = c.key === "r" ? m.relSpike : m.pitSpike;
+        if (x.excursion > 0 && x.back > x.excursion * CONFIG.flickMaxDrop) {
+          logAttempt(t, c.info, false, "dropped");
+          return null;
+        }
+        f.lastAt = t;
+        logAttempt(t, c.info, true, null);
+        const aimT = c.aimT;
+        resetFlick();
+        return { aimT };
+      }
+
+      const hit = m.rel && m.rel.ok ? { j: m.rel, key: "r" } : m.pit && m.pit.ok ? { j: m.pit, key: "pitch" } : null;
+      if (hit && t - f.lastAt >= CONFIG.flickRefractoryMs) {
+        f.cand = { at: t, key: hit.key, aimT: hit.j.aimT, info: summarize(m, P) };
+        f.attempt = null;
+        return null;
+      }
+
+      // 2) Near-miss bookkeeping: remember the most flick-like attempt and, once it's over, say which rule failed.
+      //    Only attempts where the finger really turned up relative to the wrist count (not hand moves).
+      for (const j of [m.rel, m.pit]) {
+        if (!j || j.x.score < 0.55 || j.relRise < P.tip * 0.5) continue;
+        const failed = Object.keys(j.checks).filter((k) => !j.checks[k]);
+        const quality = j.x.score + (j.checks.returned ? 1 : 0);
+        if (!f.attempt || quality > f.attempt.quality) f.attempt = { quality, failed, at: t, info: summarize(m, P) };
+      }
+      if (f.attempt && t - f.attempt.at > 450) {
+        const a = f.attempt;
+        f.attempt = null;
+        if (a.failed.length) {
+          rejectFlick(FLICK_REASONS[a.failed[0]]);
+          logAttempt(t, a.info, false, a.failed.join(","));
+        }
+      }
+      return null;
+    }
+
+    function summarize(m, P) {
+      const r = (v) => Math.round(v * 1000) / 1000;
+      const one = (j) => j && {
+        rise: r(j.x.rise), snap: r(j.x.snap), excursion: r(j.x.excursion), back: r(j.x.back),
+        relRise: r(j.relRise), wristMove: r(j.wristMove), checks: j.checks
+      };
+      return { rel: one(m.rel), pitch: one(m.pit), params: P };
+    }
+
+    function logAttempt(t, info, fired, reason) {
+      state.attemptLog.push({ t: Math.round(t), fired, reason, ...info });
+      if (state.attemptLog.length > 80) state.attemptLog.shift();
+      if (state.calibrating && fired) recordCalibration(info);
+    }
+
+    function rejectFlick(text) {
+      if (state.paused && !state.calibrating) return;
+      state.flick.reject = { text, until: performance.now() + 1800 };
+    }
+
+    function pushFlickSample(pose, t) {
+      const f = state.flick;
+      // Slow-moving palm size: moving closer to / away from the camera must not look like a flick.
+      f.palm = f.palm ? lerp(f.palm, pose.palm2, 0.08) : pose.palm2;
+      const raw = {
+        // A frame where the finger bends just doesn't contribute pitch; it no longer wipes the history.
+        pitch: pose.indexOut ? pose.pitch : null,
+        r: (pose.wristY - pose.tipY) / f.palm,  // fingertip height above the wrist (palm units)
+        w: -pose.wristY / f.palm,               // wrist height (palm units)
+        wh: pose.wristX / f.palm                // wrist horizontal (palm units)
+      };
+      // Live noise estimate (typical frame-to-frame jitter), robust to real motion.
+      const prev = f.raw[f.raw.length - 1];
+      if (prev) {
+        const upd = (cur, d) => cur + (Math.min(d, cur * 2.5 + 0.004) - cur) * 0.04;
+        f.noiseR = upd(f.noiseR, Math.abs(raw.r - prev.r));
+        if (raw.pitch !== null && prev.pitch !== null) f.noiseP = upd(f.noiseP, Math.abs(raw.pitch - prev.pitch));
+      }
+      f.raw.push(raw);
+      if (f.raw.length > 3) f.raw.shift();
+      // 3-frame median: removes single-frame jitter spikes but keeps the sharp edge of a flick.
+      const med3 = (key) => {
+        const v = f.raw.map((x) => x[key]).filter((x) => x !== null);
+        if (!v.length || raw[key] === null) return raw[key];
+        v.sort((a, b) => a - b);
+        return v[Math.floor(v.length / 2)];
+      };
+      f.hist.push({ t, pitch: med3("pitch"), r: med3("r"), w: med3("w"), wh: med3("wh") });
+      while (f.hist.length && t - f.hist[0].t > 900) f.hist.shift();
+    }
+
+    // Raise thresholds above the measured camera noise (dim light / hand far away = noisier landmarks).
+    function noiseAdjusted(P) {
+      const f = state.flick;
+      const k = state.calibrating ? CONFIG.noiseK.calib : CONFIG.noiseK.play;
+      return {
+        ...P,
+        tip: Math.max(P.tip, f.noiseR * k.big),
+        snapTip: Math.max(P.snapTip, f.noiseR * k.snap),
+        pitch: Math.max(P.pitch, f.noiseP * k.big),
+        snapPitch: Math.max(P.snapPitch, f.noiseP * k.snap)
+      };
+    }
+
+    // ----------------------------------------------------------------------
+    // Calibration: the player flicks 5 times; thresholds are set from *their* real flicks
+    // (camera, lighting, hand size and style all differ a lot between players).
+    // ----------------------------------------------------------------------
+    function startCalibration() {
+      state.calibrating = { samples: [], need: 5 };
+      resetFlick();
+      calibPanel.classList.remove("hidden");
+      overlay.classList.add("hidden");
+      updateCalibPanel();
+    }
+
+    function recordCalibration(info) {
+      const c = state.calibrating;
+      c.samples.push(info);
+      playLockSound();
+      updateCalibPanel();
+      if (c.samples.length >= c.need) finishCalibration();
+    }
+
+    function finishCalibration() {
+      const S = state.calibrating.samples;
+      const vals = (ch, k) => S.map((s) => s[ch] && s[ch][k]).filter((v) => typeof v === "number" && v > 0);
+      // ~60% of the player's typical (median) flick, bounded: never looser than the noise-safe floors
+      // (looser thresholds let camera jitter and hand moves fire) and never stricter than "low".
+      const med = (arr, fallback) => {
+        if (!arr.length) return fallback;
+        const s = [...arr].sort((a, b) => a - b);
+        return s[Math.floor(s.length / 2)];
+      };
+      const minOf = (arr, fallback) => (arr.length ? Math.min(...arr) : fallback);
+      const maxOf = (arr, fallback) => (arr.length ? Math.max(...arr) : fallback);
+      const lo = CONFIG.sensitivity.low;
+      const F = CONFIG.calibrationFloor;
+      const mid = CONFIG.sensitivity.mid;
+      const wristRatios = S.map((s) => s.rel && s.rel.relRise > 0.05 ? s.rel.wristMove / s.rel.relRise : null).filter((v) => v !== null);
+      const snapFracs = S.flatMap((s) => [s.rel, s.pitch].filter((j) => j && j.rise > 0.05).map((j) => j.snap / j.rise));
+      const backFracs = S.flatMap((s) => [s.rel, s.pitch].filter((j) => j && j.excursion > 0).map((j) => j.back / j.excursion));
+      state.calib = {
+        tip: clamp(med(vals("rel", "rise"), mid.tip / 0.6) * 0.6, F.tip, lo.tip),
+        pitch: clamp(med(vals("pitch", "rise"), mid.pitch / 0.6) * 0.6, F.pitch, lo.pitch),
+        snapTip: clamp(med(vals("rel", "snap"), mid.snapTip / 0.6) * 0.6, F.snapTip, lo.snapTip),
+        snapPitch: clamp(med(vals("pitch", "snap"), mid.snapPitch / 0.6) * 0.6, F.snapPitch, lo.snapPitch),
+        snapFrac: clamp(minOf(snapFracs, 0.8) * 0.85, F.snapFrac, lo.snapFrac),
+        ret: clamp(minOf(backFracs, 0.7) * 0.85, F.ret, lo.ret),
+        wristSlack: clamp(maxOf(vals("rel", "wristMove"), 0.3) * 1.3, lo.wristSlack, F.wristSlack),
+        wristRatio: clamp(maxOf(wristRatios, 0.5) * 1.3, lo.wristRatio, F.wristRatio),
+        samples: S.length,
+        at: new Date().toISOString()
+      };
+      try { localStorage.setItem("flickCalib.v2", JSON.stringify(state.calib)); } catch (e) { /* storage unavailable */ }
+      state.calibrating = null;
+      enableCustomSensitivity(true);
+      $("calibStatus").textContent = "校準完成！已自動切換到「我的校準」。";
+      $("calibDone").textContent = "開始遊戲";
+      $("calibDone").dataset.mode = "play";
+      updateCalibDots(5);
+      playCorrectSound();
+    }
+
+    function updateCalibPanel() {
+      const c = state.calibrating;
+      if (!c) return;
+      $("calibStatus").textContent = `做一次上揚 → 放回原位　（${c.samples.length} / ${c.need}）`;
+      $("calibDone").textContent = "取消";
+      $("calibDone").dataset.mode = "cancel";
+      updateCalibDots(c.samples.length);
+    }
+
+    function updateCalibDots(n) {
+      document.querySelectorAll("#calibDots span").forEach((d, i) => d.classList.toggle("on", i < n));
+    }
+
+    function enableCustomSensitivity(select) {
+      const opt = $("sensCustom");
+      opt.disabled = !state.calib;
+      opt.textContent = state.calib ? "我的校準（推薦）" : "我的校準（請先校準）";
+      if (select && state.calib) {
+        $("sensSelect").value = "custom";
+        state.settings.sens = "custom";
+      }
+    }
+
+    // ----------------------------------------------------------------------
+    // Recording: last 30 s of hand signals + every flick attempt, downloadable for analysis.
+    // ----------------------------------------------------------------------
+    function recordSample(pose, t) {
+      const r = (v) => Math.round(v * 10000) / 10000;
+      state.recording.push({
+        t: Math.round(t), tipX: r(pose.tipX), tipY: r(pose.tipY), wristX: r(pose.wristX), wristY: r(pose.wristY),
+        palm: r(pose.palm2), pitch: r(pose.pitch), indexOut: pose.indexOut
+      });
+      while (state.recording.length && t - state.recording[0].t > 30000) state.recording.shift();
+    }
+
+    function downloadRecording() {
+      const data = {
+        app: "gesture-quiz-shooter",
+        savedAt: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        video: { width: video.videoWidth, height: video.videoHeight },
+        settings: state.settings,
+        calib: state.calib,
+        params: flickParams(),
+        attempts: state.attemptLog,
+        samples: state.recording
+      };
+      const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `gesture-log-${Date.now()}.json`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+
+    function updateAimFromLandmarks(L, t) {
+      // Aim follows the *knuckles* (index + middle MCP), not the fingertip: the player aims by moving the
+      // hand, and flicking / tilting the finger doesn't drag the crosshair. That also means players never
+      // need to aim by tilting, which is the one motion that looks like a flick.
+      const gain = 1.7;
+      const kx = 1 - (L[5].x + L[9].x) / 2;
+      const ky = (L[5].y + L[9].y) / 2;
+      const nx = 0.5 + (kx - 0.5) * gain;
+      const ny = 0.5 + (ky - 0.55) * gain;
+      state.hand.rawAim.x = aimFilter.x.filter(clamp(nx, 0, 1) * state.width, t);
+      state.hand.rawAim.y = aimFilter.y.filter(clamp(ny, 0, 1) * state.height, t);
+
+      const ox = 0.5 + ((1 - L[0].x) - 0.5) * gain;
+      const oy = 0.5 + (L[0].y - 0.55) * gain;
+      state.hand.rawOrigin.x = aimFilter.ox.filter(clamp(ox, 0, 1) * state.width, t);
+      state.hand.rawOrigin.y = aimFilter.oy.filter(clamp(oy, 0.1, 1.05) * state.height, t);
+    }
+
+    function noteShot(text) {
+      state.shotNote = { text: `開火：${text}`, until: performance.now() + 1200 };
+    }
+
+    function setGestureText(label, detail) {
+      if (state.gestureText.label === label && state.gestureText.detail === detail) return;
+      state.gestureText = { label, detail };
+      $("gestureValue").textContent = label;
+      $("hintValue").textContent = detail;
+    }
+
+    function describeGesture() {
+      if (!state.cameraOn) {
+        setGestureText("滑鼠模式", "移動滑鼠瞄準，點擊開槍；或按 1–4 / A–D 作答。");
+        return;
+      }
+      const pose = state.pose;
+      const now = performance.now();
+      const reject = state.flick.reject;
+      if (state.calibrating) {
+        setGestureText("校準中", reject && now < reject.until ? reject.text : "手腕一抖，食指快速上揚再放回。");
+        return;
+      }
+      if (!state.handSeen || !pose) {
+        setGestureText("未偵測到手掌", "把手移到鏡頭中央，手掌側面對著鏡頭效果最好。");
+      } else if (reject && now < reject.until) {
+        setGestureText("差一點！", reject.text);
+      } else if (!pose.indexOut) {
+        setGestureText("伸直食指", "伸直食指瞄準答案，其餘手指收起。");
       } else {
-        state.misses += 1;
-        createMissEffect(aimPoint.x, aimPoint.y);
+        setGestureText("瞄準中", "移動整隻手瞄準，然後手腕一抖、食指快速上揚再放回。");
+      }
+    }
+
+    // ======================================================================
+    // Tracking
+    // ======================================================================
+    function fireFlick(flick, now) {
+      const settled = now - state.handSinceAt > CONFIG.handSettleMs;
+      if (!flick || !settled) return;
+      if (state.calibrating) { state.hand.shotFlash = 1; playGunshotSound(); return; }
+      if (state.paused) return;
+      noteShot("食指上揚");
+      shoot("flick", flick.aimT);
+    }
+
+    function processHandTracking(now) {
+      if (!state.handLandmarker || video.readyState < 2) return;
+      if (video.currentTime === state.lastVideoTime) return;
+      state.lastVideoTime = video.currentTime;
+
+      let result;
+      try {
+        result = state.handLandmarker.detectForVideo(video, now);
+      } catch (e) {
+        console.warn("detectForVideo failed", e);
+        return;
+      }
+      const hasHand = !!(result.landmarks && result.landmarks.length);
+      const gap = now - state.lastHandAt;
+
+      if (!hasHand) {
+        // Short dropouts (motion blur during a flick) keep all history; only a real absence resets it.
+        state.handSeen = false;
+        if (gap > CONFIG.lostResetMs) {
+          state.pose = null;
+          resetFlick();
+          state.flick.palm = 0;
+          aimFilter.x.reset(); aimFilter.y.reset(); aimFilter.ox.reset(); aimFilter.oy.reset();
+        }
+        drawPreview(null);
+        return;
       }
 
-      updateHud();
+      if (!state.handSeen && gap > CONFIG.lostResetMs) state.handSinceAt = now;
+      state.handSeen = true;
+      state.lastHandAt = now;
+      const L = result.landmarks[0];
+      const W = (result.worldLandmarks && result.worldLandmarks[0]) || L;
+      const pose = analyzeHand(W, L);
+      state.pose = pose;
+      updateAimFromLandmarks(L, now);
+      pushFlickSample(pose, now);
+      recordSample(pose, now);
+      fireFlick(evaluateFlick(now), now);
+      drawPreview(L);
     }
 
-    function registerBreach(enemy) {
-      state.misses += 1;
-      createFloatingText("MISS", state.center.x, state.center.y - 40, "#ffb0c0");
-      createImpact(state.center.x, state.center.y, "rgba(255, 101, 101, 0.9)");
-      playMissSound(0.65);
-      removeEnemy(enemy.id);
-      ensureEnemyCount();
-      updateHud();
+    function updateHandAim(dt, now) {
+      const hand = state.hand;
+      const handRecent = state.cameraOn && now - state.lastHandAt < 250;
+      const mouseRecent = now - state.lastMouseAt < 1500 && !handRecent;
+      const wasActive = hand.active;
+      hand.active = handRecent || mouseRecent;
+
+      if (mouseRecent) {
+        hand.rawAim.x = state.mouse.x;
+        hand.rawAim.y = state.mouse.y;
+        hand.rawOrigin.x = state.width / 2;
+        hand.rawOrigin.y = state.height + 20;
+      }
+      if (hand.active && !wasActive) {
+        hand.origin.x = hand.rawOrigin.x;
+        hand.origin.y = hand.rawOrigin.y;
+      }
+
+      // Light magnetism toward the hovered disc so it feels sticky but never yanks the aim away.
+      let ax = hand.rawAim.x;
+      let ay = hand.rawAim.y;
+      const hover = targetAtPoint(hand.rawAim);
+      if (hover && !mouseRecent) {
+        const d = dist2(hand.rawAim, hover);
+        const pull = clamp(1 - d / (hover.radius + CONFIG.hitPadding), 0, 1) * 0.35;
+        ax = lerp(ax, hover.x, pull);
+        ay = lerp(ay, hover.y, pull);
+      }
+
+      if (hand.active) {
+        const k = mouseRecent ? 1 : clamp(dt * 22, 0.3, 0.8);
+        hand.aim.x = lerp(hand.aim.x, ax, k);
+        hand.aim.y = lerp(hand.aim.y, ay, k);
+        hand.origin.x = lerp(hand.origin.x, hand.rawOrigin.x, clamp(dt * 14, 0.2, 0.6));
+        hand.origin.y = lerp(hand.origin.y, hand.rawOrigin.y, clamp(dt * 14, 0.2, 0.6));
+      }
+
+      const quizActive = state.quiz && state.quiz.phase === "question";
+      const locked = quizActive && hand.active ? targetAtPoint(hand.aim) : null;
+      if (locked && locked.id !== hand.lockId) playLockSound();
+      hand.lockId = locked ? locked.id : null;
+
+      state.aimHistory.push({ t: now, x: hand.aim.x, y: hand.aim.y, lockId: hand.lockId });
+      while (state.aimHistory.length && now - state.aimHistory[0].t > 1000) state.aimHistory.shift();
     }
 
-    function drawBackground(dt, nowSeconds) {
-      ctx.clearRect(0, 0, state.width, state.height);
+    function updateTargets(dt, nowSec) {
+      for (const t of state.targets) {
+        t.x = t.ax + Math.sin(nowSec * 0.55 + t.seed) * t.drift;
+        t.y = t.ay + Math.cos(nowSec * 0.43 + t.seed * 1.3) * t.drift * 0.6;
+        t.pop = Math.max(0, t.pop - dt * 2.4);
+      }
+    }
 
-      const bgGradient = ctx.createRadialGradient(
-        state.center.x,
-        state.center.y,
-        120,
-        state.center.x,
-        state.center.y,
-        Math.max(state.width, state.height) * 0.85
-      );
-      bgGradient.addColorStop(0, "rgba(18, 36, 78, 0.58)");
-      bgGradient.addColorStop(0.42, "rgba(6, 18, 42, 0.42)");
-      bgGradient.addColorStop(1, "rgba(2, 8, 20, 0.98)");
-      ctx.fillStyle = bgGradient;
+    // ======================================================================
+    // Effects
+    // ======================================================================
+    function createFloatingText(text, x, y, color) {
+      state.floaters.push({ text, x, y, vx: rand(-14, 14), vy: rand(-70, -45), life: 1, maxLife: 1, color });
+    }
+
+    function createImpact(x, y, color = "rgba(89, 239, 255, 0.95)") {
+      state.impacts.push({ x, y, radius: 14, life: 0.34, maxLife: 0.34, color });
+    }
+
+    function burst(target, label) {
+      const n = 36;
+      for (let i = 0; i < n; i++) {
+        const a = (Math.PI * 2 * i) / n + rand(-0.2, 0.2);
+        const sp = rand(90, 300);
+        const life = rand(0.35, 0.7);
+        state.particles.push({ x: target.x, y: target.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, maxLife: life, size: rand(2, 5), hue: 110 });
+      }
+      createImpact(target.x, target.y, "rgba(169, 255, 112, 0.95)");
+      createFloatingText(label, target.x, target.y - target.radius, "#c8ff9e");
+    }
+
+    // ======================================================================
+    // Rendering
+    // ======================================================================
+    function drawBackground(dt) {
+      const g = ctx.createRadialGradient(state.width / 2, state.height / 2, 80, state.width / 2, state.height / 2, Math.max(state.width, state.height) * 0.8);
+      g.addColorStop(0, "rgba(18, 36, 78, 1)");
+      g.addColorStop(0.5, "rgba(7, 18, 42, 1)");
+      g.addColorStop(1, "rgba(2, 8, 20, 1)");
+      ctx.fillStyle = g;
       ctx.fillRect(0, 0, state.width, state.height);
-
-      for (const star of state.stars) {
-        star.y += star.speed * dt;
-        if (star.y > state.height + 4) {
-          star.y = -4;
-          star.x = Math.random() * state.width;
-        }
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+      for (const s of state.stars) {
+        s.y += s.speed * dt;
+        if (s.y > state.height + 4) { s.y = -4; s.x = Math.random() * state.width; }
+        ctx.fillStyle = `rgba(255,255,255,${s.alpha})`;
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      ctx.save();
-      ctx.translate(state.center.x, state.center.y);
-      const corePulse = 1 + Math.sin(nowSeconds * 3.1) * 0.06;
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.arc(0, 0, 54 + i * 28 * corePulse, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(89, 239, 255, ${0.16 - i * 0.03})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-      const coreGradient = ctx.createRadialGradient(0, 0, 6, 0, 0, 46);
-      coreGradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-      coreGradient.addColorStop(0.22, "rgba(169, 255, 112, 0.95)");
-      coreGradient.addColorStop(0.7, "rgba(89, 239, 255, 0.35)");
-      coreGradient.addColorStop(1, "rgba(89, 239, 255, 0)");
-      ctx.fillStyle = coreGradient;
-      ctx.beginPath();
-      ctx.arc(0, 0, 48 * corePulse, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
     }
 
-    function drawEnemy(enemy, nowSeconds) {
-      ctx.save();
-      ctx.translate(enemy.x, enemy.y);
-      ctx.rotate(enemy.rotation + nowSeconds * enemy.spin * 0.14);
+    function drawTarget(t, nowMs) {
+      const age = (nowMs - t.born) / 1000;
+      const appear = clamp(age / 0.35, 0, 1);
+      const ease = 1 - Math.pow(1 - appear, 3);
+      const scale = ease * (1 + t.pop * 0.08);
+      const locked = state.hand.lockId === t.id;
+      const dim = t.status === "dim";
+      let hue = t.hue;
+      let sat = 90;
+      if (t.status === "correct") { hue = 110; sat = 95; }
+      if (t.status === "wrong") { hue = 0; sat = 90; }
 
-      const halo = ctx.createRadialGradient(0, 0, enemy.radius * 0.2, 0, 0, enemy.radius * 1.8);
-      halo.addColorStop(0, `hsla(${enemy.hue}, 100%, 85%, 0.25)`);
-      halo.addColorStop(1, `hsla(${enemy.hue}, 100%, 55%, 0)`);
+      ctx.save();
+      ctx.translate(t.x, t.y);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = dim ? 0.28 : 1;
+      const r = t.radius;
+
+      const halo = ctx.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.6);
+      halo.addColorStop(0, `hsla(${hue}, 100%, 70%, ${locked ? 0.4 : 0.2})`);
+      halo.addColorStop(1, `hsla(${hue}, 100%, 55%, 0)`);
       ctx.fillStyle = halo;
       ctx.beginPath();
-      ctx.arc(0, 0, enemy.radius * 1.8, 0, Math.PI * 2);
+      ctx.arc(0, 0, r * 1.6, 0, Math.PI * 2);
       ctx.fill();
 
-      const fill = ctx.createRadialGradient(-enemy.radius * 0.35, -enemy.radius * 0.35, enemy.radius * 0.2, 0, 0, enemy.radius);
-      fill.addColorStop(0, "rgba(255, 255, 255, 0.96)");
-      fill.addColorStop(0.25, `hsla(${enemy.hue}, 100%, 70%, 0.95)`);
-      fill.addColorStop(0.8, `hsla(${enemy.hue}, 82%, 36%, 0.92)`);
-      fill.addColorStop(1, "rgba(6, 15, 34, 0.98)");
+      const fill = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
+      fill.addColorStop(0, `hsla(${hue}, ${sat}%, 46%, 0.98)`);
+      fill.addColorStop(0.85, `hsla(${hue}, ${sat}%, 24%, 0.98)`);
+      fill.addColorStop(1, "rgba(6, 15, 34, 1)");
       ctx.fillStyle = fill;
       ctx.beginPath();
-      ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = locked ? 5 : 2.5;
+      ctx.strokeStyle = locked ? "rgba(255,255,255,0.95)" : `hsla(${hue}, 100%, 78%, 0.85)`;
+      ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
+      ctx.shadowBlur = locked ? 26 : 10;
       ctx.beginPath();
-      ctx.arc(0, 0, enemy.radius * 0.78, 0, Math.PI * 2);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
-      ctx.lineWidth = 2.8;
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.arc(0, 0, enemy.radius * (0.34 + i * 0.12), i * 0.4 + enemy.wobbleSeed, i * 0.4 + enemy.wobbleSeed + Math.PI * 0.8);
-        ctx.stroke();
+      if (locked) {
+        const spin = nowMs * 0.003;
+        ctx.strokeStyle = "rgba(255, 87, 198, 0.9)";
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 4; i++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, r + 12, spin + i * Math.PI / 2, spin + i * Math.PI / 2 + 0.7);
+          ctx.stroke();
+        }
       }
 
+      // Label badge
+      const bx = -r * 0.72;
+      const by = -r * 0.72;
+      const br = Math.max(16, r * 0.24);
+      ctx.fillStyle = `hsla(${hue}, 100%, 72%, 1)`;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#06101f";
+      ctx.font = `900 ${Math.round(br * 1.1)}px Inter, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(t.status === "correct" ? "✓" : t.status === "wrong" ? "✗" : t.label, bx, by + 1);
+
+      // Answer text
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `800 ${t.fontSize}px Inter, "PingFang TC", "Microsoft JhengHei", sans-serif`;
+      const lh = t.fontSize * 1.18;
+      const y0 = -((t.lines.length - 1) * lh) / 2;
+      ctx.shadowColor = "rgba(0,0,0,0.6)";
+      ctx.shadowBlur = 6;
+      t.lines.forEach((line, i) => ctx.fillText(line, 0, y0 + i * lh));
       ctx.restore();
     }
 
     function drawLaser() {
-      const { origin, aim, active, lockStrength } = state.hand;
-      const flash = state.hand.shotFlash;
-
+      const { origin, aim, active, shotFlash } = state.hand;
+      if (!active) return;
       ctx.save();
-      ctx.strokeStyle = active
-        ? `rgba(89, 239, 255, ${0.18 + lockStrength * 0.5 + flash * 0.4})`
-        : "rgba(255, 255, 255, 0.08)";
-      ctx.lineWidth = 2 + lockStrength * 2 + flash * 3;
-      ctx.shadowColor = flash > 0.02 ? "rgba(255, 87, 198, 0.9)" : "rgba(89, 239, 255, 0.7)";
-      ctx.shadowBlur = 12 + lockStrength * 18 + flash * 18;
-      ctx.beginPath();
-      ctx.moveTo(origin.x, origin.y);
-      ctx.lineTo(aim.x, aim.y);
-      ctx.stroke();
-
-      ctx.strokeStyle = active
-        ? `rgba(255, 255, 255, ${0.12 + lockStrength * 0.18})`
-        : "rgba(255, 255, 255, 0.05)";
-      ctx.lineWidth = 1;
-      ctx.shadowBlur = 0;
+      ctx.strokeStyle = `rgba(89, 239, 255, ${0.22 + shotFlash * 0.6})`;
+      ctx.lineWidth = 2 + shotFlash * 4;
+      ctx.shadowColor = shotFlash > 0.02 ? "rgba(255, 87, 198, 0.9)" : "rgba(89, 239, 255, 0.6)";
+      ctx.shadowBlur = 10 + shotFlash * 20;
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
       ctx.lineTo(aim.x, aim.y);
@@ -1008,914 +1665,340 @@
     }
 
     function drawCrosshair() {
-      const { aim, active, lockStrength } = state.hand;
-      const shotFlash = state.hand.shotFlash;
-      const radius = 16 + lockStrength * 8 + shotFlash * 10;
-      const color = active ? "89, 239, 255" : "255, 255, 255";
-
+      const { aim, active, shotFlash, lockId } = state.hand;
+      const locked = lockId !== null;
+      const radius = 16 + (locked ? 6 : 0) + shotFlash * 10;
+      const color = !active ? "255, 255, 255" : locked ? "255, 87, 198" : "89, 239, 255";
       ctx.save();
       ctx.translate(aim.x, aim.y);
-      ctx.shadowColor = `rgba(${color}, ${0.8})`;
-      ctx.shadowBlur = 16 + lockStrength * 12 + shotFlash * 10;
-      ctx.strokeStyle = `rgba(${color}, ${0.9})`;
+      ctx.globalAlpha = active ? 1 : 0.35;
+      ctx.shadowColor = `rgba(${color}, 0.8)`;
+      ctx.shadowBlur = 14 + shotFlash * 10;
+      ctx.strokeStyle = `rgba(${color}, 0.95)`;
       ctx.lineWidth = 2.2;
-
       ctx.beginPath();
       ctx.arc(0, 0, radius, 0, Math.PI * 2);
       ctx.stroke();
-
       ctx.beginPath();
-      ctx.arc(0, 0, radius * 0.42, 0, Math.PI * 2);
-      ctx.stroke();
-
-      const lineLength = radius + 14;
-      const innerGap = radius - 4;
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${color}, 1)`;
+      ctx.fill();
       for (let i = 0; i < 4; i++) {
-        const angle = (Math.PI / 2) * i;
+        const a = (Math.PI / 2) * i;
         ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * innerGap, Math.sin(angle) * innerGap);
-        ctx.lineTo(Math.cos(angle) * lineLength, Math.sin(angle) * lineLength);
+        ctx.moveTo(Math.cos(a) * (radius - 4), Math.sin(a) * (radius - 4));
+        ctx.lineTo(Math.cos(a) * (radius + 12), Math.sin(a) * (radius + 12));
         ctx.stroke();
       }
-
-      if (lockStrength > 0.08) {
-        ctx.strokeStyle = `rgba(255, 87, 198, ${0.22 + lockStrength * 0.6})`;
-        ctx.lineWidth = 1.5;
+      // Dwell progress
+      if (state.settings.dwell && state.dwell.id !== null) {
+        ctx.strokeStyle = "rgba(169, 255, 112, 0.95)";
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.arc(0, 0, radius + 12 + Math.sin(performance.now() * 0.012) * 2, 0, Math.PI * 2);
+        ctx.arc(0, 0, radius + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * clamp(state.dwell.ms / CONFIG.dwellMs, 0, 1));
         ctx.stroke();
       }
-
       ctx.restore();
     }
 
-    function drawParticles(dt) {
+    function drawEffects(dt) {
       for (let i = state.particles.length - 1; i >= 0; i--) {
-        const particle = state.particles[i];
-        particle.life -= dt;
-        if (particle.life <= 0) {
-          state.particles.splice(i, 1);
-          continue;
-        }
-
-        particle.x += particle.vx * dt;
-        particle.y += particle.vy * dt;
-        particle.vx *= 0.99;
-        particle.vy *= 0.99;
-
-        const alpha = particle.life / particle.maxLife;
-        ctx.fillStyle = `hsla(${particle.hue}, 100%, 72%, ${alpha})`;
-        ctx.shadowColor = `hsla(${particle.hue}, 100%, 72%, ${alpha})`;
-        ctx.shadowBlur = 10;
+        const p = state.particles[i];
+        p.life -= dt;
+        if (p.life <= 0) { state.particles.splice(i, 1); continue; }
+        p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.98; p.vy *= 0.98;
+        const a = p.life / p.maxLife;
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 72%, ${a})`;
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
         ctx.fill();
       }
-      ctx.shadowBlur = 0;
-    }
-
-    function drawImpacts(dt) {
       for (let i = state.impacts.length - 1; i >= 0; i--) {
-        const impact = state.impacts[i];
-        impact.life -= dt;
-        if (impact.life <= 0) {
-          state.impacts.splice(i, 1);
-          continue;
-        }
-
-        const alpha = impact.life / impact.maxLife;
-        impact.radius += dt * 180;
+        const im = state.impacts[i];
+        im.life -= dt;
+        if (im.life <= 0) { state.impacts.splice(i, 1); continue; }
+        const a = im.life / im.maxLife;
+        im.radius += dt * 200;
         ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = impact.color;
-        ctx.lineWidth = 4 * alpha + 0.4;
-        ctx.shadowColor = impact.color;
-        ctx.shadowBlur = 18 * alpha;
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = im.color;
+        ctx.lineWidth = 4 * a + 0.5;
         ctx.beginPath();
-        ctx.arc(impact.x, impact.y, impact.radius, 0, Math.PI * 2);
+        ctx.arc(im.x, im.y, im.radius, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
       }
-    }
-
-    function drawFloaters(dt) {
       for (let i = state.floaters.length - 1; i >= 0; i--) {
-        const floater = state.floaters[i];
-        floater.life -= dt;
-        if (floater.life <= 0) {
-          state.floaters.splice(i, 1);
-          continue;
-        }
-
-        floater.x += floater.vx * dt;
-        floater.y += floater.vy * dt;
-        floater.vy += 25 * dt;
-
-        const alpha = floater.life / floater.maxLife;
+        const f = state.floaters[i];
+        f.life -= dt;
+        if (f.life <= 0) { state.floaters.splice(i, 1); continue; }
+        f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 30 * dt;
         ctx.save();
-        ctx.translate(floater.x, floater.y);
-        ctx.scale(floater.scale + (1 - alpha) * 0.12, floater.scale + (1 - alpha) * 0.12);
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = floater.color;
-        ctx.strokeStyle = "rgba(4, 10, 24, 0.8)";
-        ctx.lineWidth = 5;
+        ctx.globalAlpha = f.life / f.maxLife;
+        ctx.font = "900 30px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = "900 28px Inter, system-ui, sans-serif";
-        ctx.strokeText(floater.text, 0, 0);
-        ctx.fillText(floater.text, 0, 0);
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "rgba(4, 10, 24, 0.85)";
+        ctx.strokeText(f.text, f.x, f.y);
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, f.x, f.y);
         ctx.restore();
       }
     }
 
-    function render(now) {
-      const dt = Math.min((now - state.lastFrameTime) / 1000 || 0, 0.033);
-      const nowSeconds = now / 1000;
-      state.lastFrameTime = now;
-
-      drawBackground(dt, nowSeconds);
+    function render(now, dt) {
+      drawBackground(dt);
       drawLaser();
-
-      for (const enemy of state.enemies) {
-        drawEnemy(enemy, nowSeconds);
-      }
-
-      drawParticles(dt);
-      drawImpacts(dt);
-      drawFloaters(dt);
+      for (const t of state.targets) drawTarget(t, now);
+      drawEffects(dt);
       drawCrosshair();
-
-      state.hand.shotFlash = Math.max(0, state.hand.shotFlash - dt * 5.6);
+      state.hand.shotFlash = Math.max(0, state.hand.shotFlash - dt * 5);
     }
 
-    function updateEnemyPositions(dt) {
-      for (let i = state.enemies.length - 1; i >= 0; i--) {
-        const enemy = state.enemies[i];
-        const angleToCenter = Math.atan2(state.center.y - enemy.y, state.center.x - enemy.x);
-        enemy.vx = lerp(enemy.vx, Math.cos(angleToCenter) * 135, dt * 0.45);
-        enemy.vy = lerp(enemy.vy, Math.sin(angleToCenter) * 135, dt * 0.45);
-        enemy.x += enemy.vx * dt;
-        enemy.y += enemy.vy * dt;
-        enemy.rotation += enemy.spin * dt;
-
-        if (distance(enemy, state.center) < 44) {
-          registerBreach(enemy);
-        }
-      }
-    }
-
-    function findAimAssistTarget(rawAim) {
-      let nearest = null;
-      let nearestDistance = Infinity;
-      for (const enemy of state.enemies) {
-        const d = distance(rawAim, enemy);
-        if (d < nearestDistance) {
-          nearest = enemy;
-          nearestDistance = d;
-        }
-      }
-
-      const magnetRadius = Math.min(state.width, state.height) * 0.24;
-      if (!nearest || nearestDistance > magnetRadius) {
-        return { x: rawAim.x, y: rawAim.y, targetId: null, strength: 0 };
-      }
-
-      const normalized = 1 - nearestDistance / magnetRadius;
-      const attraction = clamp(0.18 + normalized * normalized * 0.88, 0, 0.92);
-      return {
-        x: lerp(rawAim.x, nearest.x, attraction),
-        y: lerp(rawAim.y, nearest.y, attraction),
-        targetId: nearest.id,
-        strength: attraction
-      };
-    }
-
-    function updateHandAim(dt) {
-      if (state.hand.active) {
-        const snapped = findAimAssistTarget(state.hand.rawAim);
-        state.hand.aim.x = lerp(state.hand.aim.x, snapped.x, clamp(0.16 + dt * 8, 0.14, 0.32));
-        state.hand.aim.y = lerp(state.hand.aim.y, snapped.y, clamp(0.16 + dt * 8, 0.14, 0.32));
-        state.hand.origin.x = lerp(state.hand.origin.x, state.hand.rawOrigin.x, clamp(0.18 + dt * 8, 0.16, 0.28));
-        state.hand.origin.y = lerp(state.hand.origin.y, state.hand.rawOrigin.y, clamp(0.18 + dt * 8, 0.16, 0.28));
-        if (snapped.targetId !== null && snapped.targetId !== state.gesture.lastLockId && snapped.strength > 0.35) {
-          playLockSound();
-        }
-        state.gesture.lastLockId = snapped.targetId;
-        state.hand.lockId = snapped.targetId;
-        state.hand.lockStrength = lerp(state.hand.lockStrength, snapped.strength, 0.18);
-      } else {
-        state.hand.aim.x = lerp(state.hand.aim.x, state.center.x, clamp(0.02 + dt * 1.5, 0.02, 0.08));
-        state.hand.aim.y = lerp(state.hand.aim.y, state.center.y, clamp(0.02 + dt * 1.5, 0.02, 0.08));
-        state.hand.origin.x = lerp(state.hand.origin.x, state.center.x, clamp(0.02 + dt * 1.2, 0.02, 0.08));
-        state.hand.origin.y = lerp(state.hand.origin.y, state.height * 0.72, clamp(0.02 + dt * 1.2, 0.02, 0.08));
-        state.hand.lockId = null;
-        state.hand.lockStrength = lerp(state.hand.lockStrength, 0, 0.16);
-      }
-    }
-
-    function fingerExtensionRatio(landmarks, indices) {
-      const [mcpIndex, pipIndex, dipIndex, tipIndex] = indices;
-      const mcp = landmarks[mcpIndex];
-      const pip = landmarks[pipIndex];
-      const dip = landmarks[dipIndex];
-      const tip = landmarks[tipIndex];
-      const reach = distance(tip, mcp);
-      const total = distance(mcp, pip) + distance(pip, dip) + distance(dip, tip);
-      return reach / Math.max(total, 0.0001);
-    }
-
-    function thumbSpreadRatio(landmarks, palmSize) {
-      return distance(landmarks[4], landmarks[5]) / Math.max(palmSize, 0.0001);
-    }
-
-    function evaluateGesture(points) {
-      const wrist = points[0];
-      const indexMcp = points[5];
-      const middleMcp = points[9];
-      const pinkyMcp = points[17];
-      const palmSize = (distance(wrist, indexMcp) + distance(wrist, pinkyMcp) + distance(indexMcp, pinkyMcp)) / 3;
-
-      const indexExtended = fingerExtensionRatio(points, [5, 6, 7, 8]) > 0.76;
-      const middleCurled = fingerExtensionRatio(points, [9, 10, 11, 12]) < 0.82;
-      const ringCurled = fingerExtensionRatio(points, [13, 14, 15, 16]) < 0.82;
-      const pinkyCurled = fingerExtensionRatio(points, [17, 18, 19, 20]) < 0.82;
-
-      const thumbToMiddleMcp = distance(points[4], middleMcp) / Math.max(palmSize, 0.0001);
-      const thumbToIndexMcp = distance(points[4], indexMcp) / Math.max(palmSize, 0.0001);
-
-      const pistolBase = indexExtended && middleCurled && ringCurled && pinkyCurled;
-
-      return {
-        pistolBase,
-        thumbToMiddleMcp,
-        thumbToIndexMcp,
-        palmSize
-      };
-    }
-
-    function updateGestureState(gesture) {
-      if (!state.handSeen) {
-        state.gesture.label = "未偵測到手掌";
-        state.gesture.detail = "請把手移到鏡頭中央，保持單手入鏡。";
-        state.gesture.thumbState = "unknown";
-        state.gesture.pistolGrace = 0;
-        state.gesture.armed = false;
-        updateHud();
-        return;
-      }
-
-      if (gesture.pistolBase) {
-        state.gesture.pistolGrace = 6;
-      } else if (state.gesture.pistolGrace > 0) {
-        state.gesture.pistolGrace -= 1;
-      }
-
-      const pistolActive = gesture.pistolBase || state.gesture.pistolGrace > 0;
-
-      if (!pistolActive) {
-        state.gesture.label = "調整手勢";
-        state.gesture.detail = "食指伸直，其餘三指收起，讓拇指保持外張。";
-        state.gesture.thumbState = "unknown";
-        state.gesture.armed = false;
-        updateHud();
-        return;
-      }
-
-      const d = gesture.thumbToMiddleMcp;
-      const prev = state.gesture.thumbState;
-      const OPEN_FROM_UNKNOWN = 0.86;
-      const TRIGGER_PULL = 0.76;
-      const REARM_LEVEL = 0.88;
-
-      if (prev === "open") {
-        if (d < TRIGGER_PULL) {
-          state.gesture.thumbState = "pulled";
-          state.gesture.armed = false;
-          state.gesture.lastShotMethod = "thumb";
-          shoot();
-          state.gesture.label = "扳機扣下";
-          state.gesture.detail = "射擊！把拇指重新張開即可再次上膛。";
-        } else {
-          state.gesture.armed = true;
-          state.gesture.label = "已上膛";
-          state.gesture.detail = "拇指已張開。把拇指往掌心扣一下即可發射。或把食指快速上揚觸發。";
-        }
-      } else if (prev === "pulled") {
-        if (d > REARM_LEVEL) {
-          state.gesture.thumbState = "open";
-          state.gesture.armed = true;
-          playArmSound();
-          state.gesture.label = "重新上膛";
-          state.gesture.detail = "準備下一發，扣拇指或食指快速上揚即可發射。";
-        } else {
-          state.gesture.armed = false;
-          state.gesture.label = "張開拇指上膛";
-          state.gesture.detail = "把拇指往外張，讓槍重新上膛。";
-        }
-      } else {
-        if (d > OPEN_FROM_UNKNOWN) {
-          state.gesture.thumbState = "open";
-          state.gesture.armed = true;
-          playArmSound();
-          state.gesture.label = "已上膛";
-          state.gesture.detail = "扣拇指或把食指快速上揚即可發射。";
-        } else if (d < TRIGGER_PULL) {
-          state.gesture.thumbState = "pulled";
-          state.gesture.armed = false;
-          state.gesture.label = "張開拇指上膛";
-          state.gesture.detail = "先把拇指張開，讓槍上膛後再扣扳機。";
-        } else {
-          state.gesture.armed = false;
-          state.gesture.label = "手槍手勢已對準";
-          state.gesture.detail = "食指瞄準目標後，快速上揚一下即可射擊。";
-        }
-      }
-
-      updateHud();
-    }
-
-    function detectIndexFlick(landmarks) {
-      const indexTip = pointFromLandmark(landmarks[8]);
-      const wrist = pointFromLandmark(landmarks[0]);
-      const indexMcp = pointFromLandmark(landmarks[5]);
-      const pinkyMcp = pointFromLandmark(landmarks[17]);
-
-      const palmSize = (distance(wrist, indexMcp) + distance(wrist, pinkyMcp) + distance(indexMcp, pinkyMcp)) / 3;
-      if (palmSize < 1) {
-        return;
-      }
-
-      const pointsArr = landmarks.map(pointFromLandmark);
-      const indexExt = fingerExtensionRatio(pointsArr, [5, 6, 7, 8]);
-      if (indexExt < 0.7) {
-        return;
-      }
-
-      const relY = (wrist.y - indexTip.y) / palmSize;
-      const now = performance.now();
-      const hist = state.gesture.indexHistory;
-      hist.push({ t: now, relY });
-      while (hist.length > 0 && now - hist[0].t > 400) {
-        hist.shift();
-      }
-
-      if (!state.gesture.flickArmed && now - state.gesture.lastFlickAt > 420) {
-        state.gesture.flickArmed = true;
-      }
-
-      let past = null;
-      for (const h of hist) {
-        const age = now - h.t;
-        if (age >= 90 && age <= 220) {
-          past = h;
-          break;
-        }
-      }
-      if (!past) {
-        return;
-      }
-
-      const dt = (now - past.t) / 1000;
-      if (dt <= 0) {
-        return;
-      }
-
-      const deltaRelY = relY - past.relY;
-      const velocity = deltaRelY / dt;
-
-      const FLICK_VELOCITY = 4.8;
-      const MIN_DISPLACEMENT = 0.22;
-
-      if (velocity > FLICK_VELOCITY && deltaRelY > MIN_DISPLACEMENT && state.gesture.flickArmed) {
-        if (performance.now() - state.lastShotAt < state.shotCooldownMs) {
-          return;
-        }
-        state.gesture.flickArmed = false;
-        state.gesture.lastFlickAt = now;
-        state.gesture.lastShotMethod = "flick";
-        shoot();
-      }
-
-      if (Math.abs(velocity) < 1.5 && now - state.gesture.lastFlickAt > 220) {
-        state.gesture.flickArmed = true;
-      }
-    }
-
-    function updateAimFromLandmarks(landmarks) {
-      const wrist = pointFromLandmark(landmarks[0]);
-      const thumbBase = pointFromLandmark(landmarks[2]);
-      const indexMcp = pointFromLandmark(landmarks[5]);
-      const indexPip = pointFromLandmark(landmarks[6]);
-      const indexTip = pointFromLandmark(landmarks[8]);
-
-      const direction = normalize({
-        x: indexTip.x - indexPip.x,
-        y: indexTip.y - indexPip.y
-      });
-
-      const projectionLength = clamp(Math.min(state.width, state.height) * 0.18, 90, 220);
-      const projectedAim = {
-        x: clamp(indexTip.x + direction.x * projectionLength, 24, state.width - 24),
-        y: clamp(indexTip.y + direction.y * projectionLength, 24, state.height - 24)
-      };
-
-      state.hand.rawAim.x = lerp(state.hand.rawAim.x, projectedAim.x, 0.38);
-      state.hand.rawAim.y = lerp(state.hand.rawAim.y, projectedAim.y, 0.38);
-
-      const origin = {
-        x: lerp(wrist.x, thumbBase.x, 0.44) + (indexMcp.x - wrist.x) * 0.12,
-        y: lerp(wrist.y, thumbBase.y, 0.44) + (indexMcp.y - wrist.y) * 0.12
-      };
-
-      state.hand.rawOrigin.x = lerp(state.hand.rawOrigin.x, clamp(origin.x, 10, state.width - 10), 0.34);
-      state.hand.rawOrigin.y = lerp(state.hand.rawOrigin.y, clamp(origin.y, 10, state.height - 10), 0.34);
-      state.hand.lastKnownAim = { x: state.hand.rawAim.x, y: state.hand.rawAim.y };
-      state.hand.lastKnownOrigin = { x: state.hand.rawOrigin.x, y: state.hand.rawOrigin.y };
-    }
-
-    function drawPreview(landmarks) {
-      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-
+    function drawPreview(L) {
+      const w = previewCanvas.width;
+      const h = previewCanvas.height;
+      previewCtx.clearRect(0, 0, w, h);
       if (video.readyState >= 2) {
         previewCtx.save();
-        previewCtx.translate(previewCanvas.width, 0);
+        previewCtx.translate(w, 0);
         previewCtx.scale(-1, 1);
-        previewCtx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+        previewCtx.drawImage(video, 0, 0, w, h);
         previewCtx.restore();
-      } else {
-        const fallback = previewCtx.createLinearGradient(0, 0, 0, previewCanvas.height);
-        fallback.addColorStop(0, "#091325");
-        fallback.addColorStop(1, "#040814");
-        previewCtx.fillStyle = fallback;
-        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
       }
+      previewCtx.fillStyle = "rgba(8, 20, 44, 0.38)";
+      previewCtx.fillRect(0, 0, w, h);
 
-      previewCtx.fillStyle = "rgba(8, 20, 44, 0.34)";
-      previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
-
-      if (!landmarks || !landmarks.length) {
+      if (!L) {
         previewCtx.fillStyle = "rgba(242, 246, 255, 0.86)";
-        previewCtx.font = "600 15px Inter, sans-serif";
+        previewCtx.font = "600 15px sans-serif";
         previewCtx.textAlign = "center";
-        previewCtx.fillText("等待手掌進入鏡頭", previewCanvas.width / 2, previewCanvas.height / 2);
+        previewCtx.fillText(state.cameraOn ? "等待手掌進入鏡頭" : "相機未啟動", w / 2, h / 2);
         return;
       }
 
+      const P = (lm) => ({ x: (1 - lm.x) * w, y: lm.y * h });
       previewCtx.lineWidth = 2;
       previewCtx.strokeStyle = "rgba(89, 239, 255, 0.85)";
-      previewCtx.shadowColor = "rgba(89, 239, 255, 0.56)";
-      previewCtx.shadowBlur = 8;
-
       for (const [a, b] of HAND_CONNECTIONS) {
-        const p1 = smallPointFromLandmark(landmarks[a]);
-        const p2 = smallPointFromLandmark(landmarks[b]);
+        const p1 = P(L[a]);
+        const p2 = P(L[b]);
         previewCtx.beginPath();
         previewCtx.moveTo(p1.x, p1.y);
         previewCtx.lineTo(p2.x, p2.y);
         previewCtx.stroke();
       }
-
-      previewCtx.shadowBlur = 0;
-      for (let i = 0; i < landmarks.length; i++) {
-        const p = smallPointFromLandmark(landmarks[i]);
+      L.forEach((lm, i) => {
+        const p = P(lm);
         previewCtx.fillStyle = i === 8 ? "#a9ff70" : i === 4 ? "#ffcf70" : "#ffffff";
         previewCtx.beginPath();
-        previewCtx.arc(p.x, p.y, i === 8 ? 4.8 : 3.4, 0, Math.PI * 2);
+        previewCtx.arc(p.x, p.y, i === 8 || i === 4 ? 5 : 3, 0, Math.PI * 2);
         previewCtx.fill();
+      });
+
+      // Diagnostics: flick meter (fills to 100% = strong enough; it fires once the finger comes back)
+      const pose = state.pose;
+      const pct = clamp(state.flick.score, 0, 1);
+      previewCtx.fillStyle = "rgba(0,0,0,0.55)";
+      previewCtx.fillRect(10, h - 20, w - 20, 10);
+      previewCtx.fillStyle = pct >= 1 ? "#ff57c6" : "#59efff";
+      previewCtx.fillRect(10, h - 20, (w - 20) * pct, 10);
+      previewCtx.font = "700 12px sans-serif";
+      previewCtx.textAlign = "left";
+      previewCtx.fillStyle = pose && pose.indexOut ? "#a9ff70" : "#ffacbb";
+      previewCtx.fillText(pose && pose.indexOut ? "食指 ✓" : "伸直食指", 10, 18);
+      previewCtx.fillStyle = "#ffffff";
+      previewCtx.fillText("上揚力度", 10, h - 26);
+      if (state.flick.noiseR > CONFIG.noisyWarn) {
+        previewCtx.textAlign = "right";
+        previewCtx.font = "700 12px sans-serif";
+        previewCtx.fillStyle = "#ffcf70";
+        previewCtx.fillText("⚠ 光線不足或手太遠", w - 10, 18);
+      }
+      const rj = state.flick.reject;
+      if (rj && performance.now() < rj.until) {
+        previewCtx.textAlign = "center";
+        previewCtx.font = "800 14px sans-serif";
+        previewCtx.fillStyle = "#ffcf70";
+        previewCtx.fillText(rj.text, w / 2, 62);
+      }
+      if (performance.now() < state.shotNote.until) {
+        previewCtx.textAlign = "center";
+        previewCtx.font = "800 16px sans-serif";
+        previewCtx.fillStyle = "#ff57c6";
+        previewCtx.fillText(state.shotNote.text, w / 2, 40);
       }
     }
 
+    // ======================================================================
+    // Camera + model
+    // ======================================================================
     async function loadVisionAndCamera() {
       errorNote.textContent = "正在載入手勢模型與請求相機權限...";
-      previewHelp.textContent = "正在載入手勢模型...";
-
-      if (!state.visionLoaded) {
-        const visionModule = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
-        const { FilesetResolver, HandLandmarker } = visionModule;
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
-        );
-
-        state.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+      if (!state.handLandmarker) {
+        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        const { FilesetResolver, HandLandmarker } = vision;
+        const fileset = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+        const opts = (delegate) => ({
           baseOptions: {
             modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-            delegate: "GPU"
+            delegate
           },
           runningMode: "VIDEO",
           numHands: 1,
-          minHandDetectionConfidence: 0.6,
-          minTrackingConfidence: 0.6,
-          minHandPresenceConfidence: 0.6
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5
         });
-        state.visionLoaded = true;
-      }
-
-      if (!state.stream) {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("這個瀏覽器或目前開啟方式不支援相機存取。");
+        try {
+          state.handLandmarker = await HandLandmarker.createFromOptions(fileset, opts("GPU"));
+        } catch (e) {
+          console.warn("GPU delegate failed, falling back to CPU", e);
+          state.handLandmarker = await HandLandmarker.createFromOptions(fileset, opts("CPU"));
         }
-
+      }
+      if (!state.stream) {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("這個瀏覽器或開啟方式不支援相機（請使用 http://localhost）。");
         state.stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
+          video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 60 } },
           audio: false
         });
         video.srcObject = state.stream;
         await video.play();
       }
-
-      state.handReady = true;
+      state.cameraOn = true;
       previewDot.classList.add("live");
-      previewHelp.textContent = "即時追蹤中。綠點代表食指、黃點代表拇指，準備擺出手槍手勢。";
       errorNote.textContent = "";
     }
 
+    // ======================================================================
+    // Audio (all synthesized)
+    // ======================================================================
     function ensureAudio() {
-      if (state.audioContext) {
-        return;
-      }
-
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) {
-        return;
-      }
-
-      const audio = new AudioContextClass();
+      if (state.audioContext) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const audio = new AC();
       state.audioContext = audio;
-
-      const noiseBuf = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.4), audio.sampleRate);
-      const noiseData = noiseBuf.getChannelData(0);
-      for (let i = 0; i < noiseData.length; i++) {
-        noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseData.length);
-      }
-      state.noiseBuffer = noiseBuf;
-
+      const buf = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.4), audio.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      state.noiseBuffer = buf;
       state.sfxGain = audio.createGain();
       state.sfxGain.gain.value = 0.9;
       state.sfxGain.connect(audio.destination);
-
       state.musicGain = audio.createGain();
-      state.musicGain.gain.value = state.musicEnabled ? 0.14 : 0;
+      state.musicGain.gain.value = state.musicEnabled ? 0.12 : 0;
       state.musicGain.connect(audio.destination);
     }
 
     async function resumeAudio() {
       ensureAudio();
-      if (state.audioContext && state.audioContext.state === "suspended") {
-        await state.audioContext.resume();
-      }
+      if (state.audioContext && state.audioContext.state === "suspended") await state.audioContext.resume();
     }
+
+    function tone(type, f0, f1, dur, vol, delay = 0) {
+      if (!state.audioContext) return;
+      const a = state.audioContext;
+      const t = a.currentTime + delay;
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(f0, t);
+      if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.8);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(state.sfxGain);
+      o.start(t);
+      o.stop(t + dur + 0.02);
+    }
+
+    function noise(dur, vol, type, freq) {
+      if (!state.audioContext) return;
+      const a = state.audioContext;
+      const t = a.currentTime;
+      const src = a.createBufferSource();
+      src.buffer = state.noiseBuffer;
+      const f = a.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      const g = a.createGain();
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f).connect(g).connect(state.sfxGain);
+      src.start(t);
+      src.stop(t + dur + 0.02);
+    }
+
+    const playGunshotSound = () => { noise(0.2, 0.5, "bandpass", 1400); tone("square", 140, 58, 0.18, 0.22); };
+    const playLockSound = () => { tone("sine", 1320, 1860, 0.1, 0.05); };
+    const playTickSound = () => { tone("sine", 1000, 1000, 0.06, 0.07); };
+    const playCorrectSound = () => { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone("triangle", f, f, 0.22, 0.2, i * 0.07)); };
+    const playWrongSound = () => { tone("sawtooth", 220, 110, 0.35, 0.12); tone("sawtooth", 207, 98, 0.35, 0.1, 0.05); };
+    const playFinishSound = () => { [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone("triangle", f, f, 0.3, 0.18, i * 0.1)); };
 
     function startAmbientMusic() {
-      if (!state.audioContext || state.ambientStarted) {
-        return;
-      }
+      if (!state.audioContext || state.ambientStarted) return;
       state.ambientStarted = true;
-
-      const audio = state.audioContext;
-      const time = audio.currentTime;
-      const musicBus = state.musicGain;
-
-      const drone = audio.createOscillator();
+      const a = state.audioContext;
+      const bus = state.musicGain;
+      const drone = a.createOscillator();
       drone.type = "sawtooth";
       drone.frequency.value = 55;
-
-      const droneFilter = audio.createBiquadFilter();
-      droneFilter.type = "lowpass";
-      droneFilter.frequency.value = 180;
-      droneFilter.Q.value = 8;
-
-      const droneGain = audio.createGain();
-      droneGain.gain.value = 0.36;
-
-      drone.connect(droneFilter).connect(droneGain).connect(musicBus);
-      drone.start(time);
-
-      const lfo = audio.createOscillator();
-      lfo.type = "sine";
+      const lp = a.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 180;
+      lp.Q.value = 6;
+      const dg = a.createGain();
+      dg.gain.value = 0.3;
+      drone.connect(lp).connect(dg).connect(bus);
+      drone.start();
+      const lfo = a.createOscillator();
       lfo.frequency.value = 0.08;
-      const lfoDepth = audio.createGain();
-      lfoDepth.gain.value = 70;
-      lfo.connect(lfoDepth).connect(droneFilter.frequency);
-      lfo.start(time);
-
-      const pad = audio.createOscillator();
-      pad.type = "sine";
-      pad.frequency.value = 110;
-      const padGain = audio.createGain();
-      padGain.gain.value = 0.12;
-      const padLfo = audio.createOscillator();
-      padLfo.frequency.value = 0.18;
-      const padLfoDepth = audio.createGain();
-      padLfoDepth.gain.value = 0.04;
-      padLfo.connect(padLfoDepth).connect(padGain.gain);
-      pad.connect(padGain).connect(musicBus);
-      pad.start(time);
-      padLfo.start(time);
-
-      const arpBus = audio.createGain();
-      arpBus.gain.value = 0.9;
-      arpBus.connect(musicBus);
-
-      const delay = audio.createDelay();
+      const lfoG = a.createGain();
+      lfoG.gain.value = 60;
+      lfo.connect(lfoG).connect(lp.frequency);
+      lfo.start();
+      const delay = a.createDelay();
       delay.delayTime.value = 0.34;
-      const feedback = audio.createGain();
-      feedback.gain.value = 0.44;
-      const delayWet = audio.createGain();
-      delayWet.gain.value = 0.55;
-      arpBus.connect(delay);
-      delay.connect(feedback);
-      feedback.connect(delay);
-      delay.connect(delayWet);
-      delayWet.connect(musicBus);
-
+      const fb = a.createGain();
+      fb.gain.value = 0.4;
+      const arp = a.createGain();
+      arp.gain.value = 0.8;
+      arp.connect(bus);
+      arp.connect(delay);
+      delay.connect(fb).connect(delay);
+      delay.connect(bus);
       const scale = [220, 261.63, 329.63, 392, 440, 523.25, 659.25];
       let step = 0;
-
-      const scheduleNote = () => {
-        if (!state.audioContext || !state.ambientStarted) {
-          return;
-        }
-        const ctxAudio = state.audioContext;
-        const t = ctxAudio.currentTime;
-        const freq = scale[step % scale.length];
-        step += (step % 3 === 2) ? 2 : 1;
-
-        const osc = ctxAudio.createOscillator();
-        osc.type = "triangle";
-        osc.frequency.value = freq;
-
-        const noteGain = ctxAudio.createGain();
-        noteGain.gain.setValueAtTime(0.0001, t);
-        noteGain.gain.exponentialRampToValueAtTime(0.34, t + 0.02);
-        noteGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-
-        osc.connect(noteGain).connect(arpBus);
-        osc.start(t);
-        osc.stop(t + 0.6);
-
-        const interval = 420 + (Math.random() * 80 - 40);
-        state.ambientStepTimer = setTimeout(scheduleNote, interval);
+      const next = () => {
+        const t = a.currentTime;
+        const o = a.createOscillator();
+        o.type = "triangle";
+        o.frequency.value = scale[step % scale.length];
+        step += step % 3 === 2 ? 2 : 1;
+        const g = a.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.28, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+        o.connect(g).connect(arp);
+        o.start(t);
+        o.stop(t + 0.6);
+        setTimeout(next, 420 + rand(-40, 40));
       };
-
-      scheduleNote();
-
-      state.ambientNodes.push(drone, lfo, pad, padLfo);
+      next();
     }
 
-    function setMusicEnabled(enabled) {
-      state.musicEnabled = enabled;
-      if (state.musicGain && state.audioContext) {
-        const target = enabled ? 0.14 : 0;
-        state.musicGain.gain.setTargetAtTime(target, state.audioContext.currentTime, 0.12);
-      }
-      if (audioToggle) {
-        audioToggle.classList.toggle("off", !enabled);
-        audioToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
-      }
-      if (audioLabel) {
-        audioLabel.textContent = enabled ? "音樂：開" : "音樂：關";
-      }
-      if (audioIcon) {
-        audioIcon.textContent = enabled ? "♪" : "\u2715";
-      }
+    function setMusicEnabled(on) {
+      state.musicEnabled = on;
+      if (state.musicGain && state.audioContext) state.musicGain.gain.setTargetAtTime(on ? 0.12 : 0, state.audioContext.currentTime, 0.12);
+      audioToggle.classList.toggle("off", !on);
+      audioToggle.setAttribute("aria-pressed", on ? "true" : "false");
+      $("audioLabel").textContent = on ? "音樂：開" : "音樂：關";
+      $("audioIcon").textContent = on ? "♪" : "✕";
     }
-
-    function playGunshotSound() {
-      if (!state.audioContext) {
-        return;
-      }
-      const audio = state.audioContext;
-      const t = audio.currentTime;
-
-      const noise = audio.createBufferSource();
-      noise.buffer = state.noiseBuffer;
-      const hp = audio.createBiquadFilter();
-      hp.type = "highpass";
-      hp.frequency.value = 600;
-      const lp = audio.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.setValueAtTime(3400, t);
-      lp.frequency.exponentialRampToValueAtTime(520, t + 0.18);
-      const noiseGain = audio.createGain();
-      noiseGain.gain.setValueAtTime(0.0001, t);
-      noiseGain.gain.exponentialRampToValueAtTime(0.55, t + 0.005);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-      noise.connect(hp).connect(lp).connect(noiseGain).connect(state.sfxGain);
-      noise.start(t);
-      noise.stop(t + 0.24);
-
-      const body = audio.createOscillator();
-      body.type = "square";
-      body.frequency.setValueAtTime(140, t);
-      body.frequency.exponentialRampToValueAtTime(58, t + 0.15);
-      const bodyGain = audio.createGain();
-      bodyGain.gain.setValueAtTime(0.0001, t);
-      bodyGain.gain.exponentialRampToValueAtTime(0.28, t + 0.004);
-      bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-      body.connect(bodyGain).connect(state.sfxGain);
-      body.start(t);
-      body.stop(t + 0.2);
-    }
-
-    function playHitSound() {
-      if (!state.audioContext) {
-        return;
-      }
-      const audio = state.audioContext;
-      const t = audio.currentTime;
-
-      const tone = audio.createOscillator();
-      tone.type = "triangle";
-      tone.frequency.setValueAtTime(440, t);
-      tone.frequency.exponentialRampToValueAtTime(880, t + 0.08);
-      tone.frequency.exponentialRampToValueAtTime(220, t + 0.22);
-
-      const toneGain = audio.createGain();
-      toneGain.gain.setValueAtTime(0.0001, t);
-      toneGain.gain.exponentialRampToValueAtTime(0.28, t + 0.008);
-      toneGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-      tone.connect(toneGain).connect(state.sfxGain);
-      tone.start(t);
-      tone.stop(t + 0.3);
-
-      const sparkle = audio.createBufferSource();
-      sparkle.buffer = state.noiseBuffer;
-      const bp = audio.createBiquadFilter();
-      bp.type = "bandpass";
-      bp.frequency.value = 3200;
-      bp.Q.value = 1.4;
-      const sparkleGain = audio.createGain();
-      sparkleGain.gain.setValueAtTime(0.18, t);
-      sparkleGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-      sparkle.connect(bp).connect(sparkleGain).connect(state.sfxGain);
-      sparkle.start(t);
-      sparkle.stop(t + 0.22);
-    }
-
-    function playMissSound(volume = 1) {
-      if (!state.audioContext) {
-        return;
-      }
-      const audio = state.audioContext;
-      const t = audio.currentTime;
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(220, t);
-      osc.frequency.exponentialRampToValueAtTime(110, t + 0.1);
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.08 * volume, t + 0.006);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-      osc.connect(gain).connect(state.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.16);
-    }
-
-    function playArmSound() {
-      if (!state.audioContext) {
-        return;
-      }
-      const audio = state.audioContext;
-      const t = audio.currentTime;
-      const osc = audio.createOscillator();
-      osc.type = "square";
-      osc.frequency.setValueAtTime(880, t);
-      osc.frequency.exponentialRampToValueAtTime(1400, t + 0.06);
-      const gain = audio.createGain();
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.13, t + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
-      osc.connect(gain).connect(state.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.12);
-
-      const click = audio.createBufferSource();
-      click.buffer = state.noiseBuffer;
-      const hp = audio.createBiquadFilter();
-      hp.type = "highpass";
-      hp.frequency.value = 2200;
-      const clickGain = audio.createGain();
-      clickGain.gain.setValueAtTime(0.12, t);
-      clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
-      click.connect(hp).connect(clickGain).connect(state.sfxGain);
-      click.start(t);
-      click.stop(t + 0.09);
-    }
-
-    function playLockSound() {
-      if (!state.audioContext) {
-        return;
-      }
-      const audio = state.audioContext;
-      const t = audio.currentTime;
-      const osc = audio.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(1320, t);
-      osc.frequency.exponentialRampToValueAtTime(1860, t + 0.08);
-      const gain = audio.createGain();
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.06, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-      osc.connect(gain).connect(state.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.14);
-    }
-
-    function processHandTracking(now) {
-      if (!state.handLandmarker || video.readyState < 2) {
-        drawPreview(null);
-        return;
-      }
-
-      if (video.currentTime === state.lastVideoTime) {
-        return;
-      }
-      state.lastVideoTime = video.currentTime;
-
-      const result = state.handLandmarker.detectForVideo(video, now);
-      const hasHand = result.landmarks && result.landmarks.length > 0;
-      state.handSeen = hasHand;
-      state.hand.active = hasHand;
-
-      if (!hasHand) {
-        drawPreview(null);
-        updateGestureState({ pistolBase: false, thumbToMiddleMcp: 1, thumbToIndexMcp: 1 });
-        return;
-      }
-
-      const handLandmarks = result.landmarks[0];
-      drawPreview(handLandmarks);
-
-      const points = handLandmarks.map(pointFromLandmark);
-      const gesture = evaluateGesture(points);
-      updateAimFromLandmarks(handLandmarks);
-      updateGestureState(gesture);
-      detectIndexFlick(handLandmarks);
-    }
-
-    function gameLoop(now) {
-      if (!state.running) {
-        return;
-      }
-
-      processHandTracking(now);
-      const dt = Math.min((now - state.lastFrameTime) / 1000 || 0, 0.033);
-      updateEnemyPositions(dt);
-      ensureEnemyCount();
-      updateHandAim(dt);
-      render(now);
-      requestAnimationFrame(gameLoop);
-    }
-
-    async function startGame() {
-      startBtn.disabled = true;
-      startBtn.textContent = "啟動中...";
-
-      try {
-        await resumeAudio();
-        startAmbientMusic();
-        setMusicEnabled(state.musicEnabled);
-        await loadVisionAndCamera();
-
-        if (!state.running) {
-          state.running = true;
-          state.lastFrameTime = performance.now();
-          ensureEnemyCount();
-          overlay.classList.add("hidden");
-          requestAnimationFrame(gameLoop);
-        } else {
-          overlay.classList.add("hidden");
-        }
-
-        state.gesture.label = "等待手勢";
-        state.gesture.detail = "請把手移到鏡頭中央。";
-        updateHud();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errorNote.textContent = `啟動失敗：${message}`;
-        previewHelp.textContent = "相機或模型載入失敗。";
-        state.running = false;
-      } finally {
-        startBtn.disabled = false;
-        startBtn.textContent = "啟動相機並開始遊戲";
-      }
-    }
-
-    startBtn.addEventListener("click", startGame);
-    resumeAudioBtn.addEventListener("click", async () => {
-      try {
-        await resumeAudio();
-        startAmbientMusic();
-        errorNote.textContent = "音效已喚醒。";
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errorNote.textContent = `無法喚醒音效：${message}`;
-      }
-    });
 
     async function toggleMusic() {
       await resumeAudio();
@@ -1923,43 +2006,169 @@
       setMusicEnabled(!state.musicEnabled);
     }
 
-    audioToggle.addEventListener("click", toggleMusic);
-    audioToggle.addEventListener("keydown", (event) => {
-      if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        toggleMusic();
-      }
-    });
+    // ======================================================================
+    // HUD + loop
+    // ======================================================================
+    function updateHud() {
+      const q = state.quiz;
+      $("scoreValue").textContent = String(q ? q.score : 0);
+      $("progressValue").textContent = q ? `${Math.min(q.index + 1, q.list.length)} / ${q.list.length}` : "0 / 0";
+      $("comboValue").textContent = String(q ? q.combo : 0);
+      $("correctValue").textContent = String(q ? q.correct : 0);
+      $("wrongValue").textContent = String(q ? q.wrong : 0);
+    }
 
-    window.addEventListener("keydown", async (event) => {
-      const key = event.key.toLowerCase();
-      if (key === "r") {
+    function gameLoop(now) {
+      const dt = clamp((now - state.lastFrameTime) / 1000 || 0, 0, 0.05);
+      state.lastFrameTime = now;
+      processHandTracking(now);
+      updateQuiz(dt);
+      updateTargets(dt, now / 1000);
+      updateHandAim(dt, now);
+      describeGesture();
+      render(now, dt);
+      requestAnimationFrame(gameLoop);
+    }
+
+    function readSettings() {
+      state.settings.count = Number($("countSelect").value);
+      state.settings.time = Number($("timeSelect").value);
+      state.settings.sens = $("sensSelect").value;
+      state.settings.dwell = $("dwellCheck").checked;
+    }
+
+    function beginPlay() {
+      readSettings();
+      state.calibrating = null;
+      calibPanel.classList.add("hidden");
+      overlay.classList.add("hidden");
+      resultOverlay.classList.add("hidden");
+      if (!startRound()) {
         overlay.classList.remove("hidden");
         return;
       }
-      if (key === "m") {
-        event.preventDefault();
-        await toggleMusic();
-        return;
+      state.paused = false;
+    }
+
+    async function startWithCamera() {
+      startBtn.disabled = true;
+      startBtn.textContent = "啟動中...";
+      try {
+        await resumeAudio();
+        startAmbientMusic();
+        setMusicEnabled(state.musicEnabled);
+        await loadVisionAndCamera();
+        beginPlay();
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        errorNote.textContent = `啟動失敗：${msg}　你仍可以按「用滑鼠遊玩」。`;
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = "啟動相機並開始";
       }
-      if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        if (!state.running) {
-          await startGame();
-        } else {
+    }
+
+    async function startWithMouse() {
+      await resumeAudio();
+      startAmbientMusic();
+      setMusicEnabled(state.musicEnabled);
+      beginPlay();
+    }
+
+    function pauseToMenu() {
+      state.paused = true;
+      state.calibrating = null;
+      calibPanel.classList.add("hidden");
+      resultOverlay.classList.add("hidden");
+      overlay.classList.remove("hidden");
+      startBtn.textContent = state.cameraOn ? "重新開始" : "啟動相機並開始";
+    }
+
+    // ======================================================================
+    // Events
+    // ======================================================================
+    startBtn.addEventListener("click", () => (state.cameraOn ? (resumeAudio(), beginPlay()) : startWithCamera()));
+    mouseBtn.addEventListener("click", startWithMouse);
+    $("calibBtn").addEventListener("click", async () => {
+      readSettings();
+      if (!state.cameraOn) {
+        const btn = $("calibBtn");
+        btn.disabled = true;
+        try {
           await resumeAudio();
+          await loadVisionAndCamera();
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          errorNote.textContent = `無法啟動相機：${msg}`;
+          return;
+        } finally {
+          btn.disabled = false;
+        }
+      }
+      startCalibration();
+    });
+    $("calibDone").addEventListener("click", () => {
+      const mode = $("calibDone").dataset.mode;
+      state.calibrating = null;
+      calibPanel.classList.add("hidden");
+      if (mode === "play") beginPlay();
+      else pauseToMenu();
+    });
+    $("logBtn").addEventListener("click", downloadRecording);
+    $("logBtn2").addEventListener("click", downloadRecording);
+    $("againBtn").addEventListener("click", beginPlay);
+    $("menuBtn").addEventListener("click", pauseToMenu);
+    audioToggle.addEventListener("click", toggleMusic);
+
+    canvas.addEventListener("pointermove", (e) => {
+      state.mouse.x = e.clientX;
+      state.mouse.y = e.clientY;
+      state.lastMouseAt = performance.now();
+    });
+    canvas.addEventListener("pointerdown", (e) => {
+      state.mouse.x = e.clientX;
+      state.mouse.y = e.clientY;
+      state.lastMouseAt = performance.now();
+      if (state.paused) return;
+      state.hand.aim.x = e.clientX;
+      state.hand.aim.y = e.clientY;
+      state.aimHistory.push({ t: performance.now(), x: e.clientX, y: e.clientY, lockId: targetAtPoint(state.mouse)?.id ?? null });
+      shoot("mouse");
+    });
+
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.toLowerCase();
+      if (key === "m") { e.preventDefault(); toggleMusic(); return; }
+      if (key === "escape") { pauseToMenu(); return; }
+      if (key === "r" && state.quiz) { beginPlay(); return; }
+      if (state.paused) return;
+      const map = { "1": 0, "2": 1, "3": 2, "4": 3, a: 0, b: 1, c: 2, d: 3 };
+      if (key in map && state.quiz && state.quiz.phase === "question") {
+        const t = state.targets.find((x) => x.idx === map[key]);
+        if (t) {
+          state.hand.shotFlash = 1;
+          playGunshotSound();
+          resolveAnswer(t, "key");
         }
       }
     });
 
     window.addEventListener("resize", resizeCanvas);
 
-    initStars();
+    // Debug / testing hook (console): window.__quiz
+    window.__quiz = { state, shoot, analyzeHand, pushFlickSample, evaluateFlick, resetFlick, finishCalibration, flickParams };
+
+    try {
+      const saved = JSON.parse(localStorage.getItem("flickCalib.v2") || "null");
+      if (saved && typeof saved.tip === "number") state.calib = saved;
+    } catch (e) { /* storage unavailable */ }
+    enableCustomSensitivity(true);
+
     resizeCanvas();
-    ensureEnemyCount();
     updateHud();
     drawPreview(null);
-    render(performance.now());
+    state.lastFrameTime = performance.now();
+    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
