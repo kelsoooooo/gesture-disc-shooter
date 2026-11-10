@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手勢飛盤射擊</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-1: #040814;
+      --bg-2: #08152f;
+      --cyan: #59efff;
+      --cyan-soft: rgba(89, 239, 255, 0.18);
+      --pink: #ff57c6;
+      --pink-soft: rgba(255, 87, 198, 0.18);
+      --lime: #a9ff70;
+      --amber: #ffcf70;
+      --red: #ff6565;
+      --panel: rgba(7, 15, 32, 0.72);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #f2f6ff;
+      --text-soft: rgba(242, 246, 255, 0.72);
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(56, 99, 255, 0.12), transparent 35%),
+        radial-gradient(circle at 20% 80%, rgba(89, 239, 255, 0.12), transparent 24%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      color: var(--text);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 86%);
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #gameCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #inputVideo {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .hud-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: min(72vw, 960px);
+    }
+
+    .glass-card {
+      min-width: 160px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+    }
+
+    .label {
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      margin-bottom: 8px;
+    }
+
+    .value {
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+      text-shadow: 0 0 18px rgba(89, 239, 255, 0.24);
+    }
+
+    .value.small {
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 700;
+      color: var(--text);
+      text-shadow: none;
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--text-soft);
+      line-height: 1.55;
+    }
+
+    .accent-cyan {
+      color: var(--cyan);
+    }
+
+    .accent-pink {
+      color: #ff9fe3;
+    }
+
+    .accent-lime {
+      color: var(--lime);
+    }
+
+    .preview-shell {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      width: min(30vw, 340px);
+      min-width: 240px;
+      z-index: 6;
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(4, 10, 24, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      color: var(--text-soft);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .preview-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 10px transparent;
+      transition: all 0.2s ease;
+    }
+
+    .preview-dot.live {
+      background: var(--lime);
+      box-shadow: 0 0 12px rgba(169, 255, 112, 0.75);
+    }
+
+    #previewCanvas {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(89, 239, 255, 0.08), transparent 42%),
+        linear-gradient(180deg, rgba(7, 15, 32, 0.92), rgba(2, 8, 18, 0.96));
+    }
+
+    .preview-help {
+      padding: 10px 12px 12px;
+      font-size: 12px;
+      color: rgba(242, 246, 255, 0.6);
+      line-height: 1.5;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      z-index: 10;
+      background: rgba(3, 6, 16, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: opacity 0.28s ease, visibility 0.28s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .panel {
+      width: min(92vw, 720px);
+      border-radius: 26px;
+      padding: 28px;
+      background: rgba(6, 13, 31, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 14px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 32px;
+      height: 1px;
+      background: currentColor;
+      box-shadow: 0 0 14px currentColor;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: 0.98;
+      letter-spacing: -0.03em;
+    }
+
+    .intro {
+      margin: 0 0 22px;
+      font-size: clamp(15px, 1.8vw, 18px);
+      color: var(--text-soft);
+      line-height: 1.8;
+      max-width: 62ch;
+    }
+
+    .guide-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .guide-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .guide-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .guide-card p {
+      margin: 0;
+      font-size: 13px;
+      color: rgba(242, 246, 255, 0.7);
+      line-height: 1.7;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .primary-btn {
+      padding: 14px 20px;
+      border-radius: 16px;
+      color: #05111d;
+      background: linear-gradient(135deg, var(--cyan), #96fff8);
+      font-weight: 800;
+      box-shadow: 0 10px 30px rgba(89, 239, 255, 0.28);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 34px rgba(89, 239, 255, 0.34);
+    }
+
+    .secondary-btn {
+      padding: 14px 18px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .footnote {
+      margin-top: 14px;
+      font-size: 13px;
+      color: rgba(242, 246, 255, 0.56);
+      line-height: 1.7;
+    }
+
+    .error-note {
+      margin-top: 14px;
+      color: #ffacbb;
+      font-size: 13px;
+      line-height: 1.7;
+      min-height: 22px;
+    }
+
+    .top-right-tip {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 5;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(7, 15, 32, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(242, 246, 255, 0.72);
+      font-size: 12px;
+      line-height: 1.55;
+      max-width: min(34vw, 360px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      pointer-events: none;
+    }
+
+    .audio-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      transform: translateY(calc(100% + 12px));
+      z-index: 6;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(7, 15, 32, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      transition: color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
+    }
+
+    .audio-toggle:hover {
+      background: rgba(16, 28, 56, 0.92);
+    }
+
+    .audio-toggle.off {
+      color: rgba(242, 246, 255, 0.45);
+    }
+
+    .audio-toggle .audio-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(89, 239, 255, 0.14);
+      font-size: 13px;
+      color: inherit;
+    }
+
+    .audio-toggle.off .audio-icon {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    @media (max-width: 920px) {
+      .hud {
+        right: 20px;
+      }
+
+      .hud-row {
+        max-width: 78vw;
+      }
+
+      .preview-shell {
+        width: min(38vw, 320px);
+      }
+
+      .top-right-tip {
+        max-width: 42vw;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+      }
+
+      .hud-row {
+        max-width: calc(100vw - 24px);
+      }
+
+      .glass-card {
+        min-width: 0;
+        flex: 1 1 0;
+      }
+
+      .preview-shell {
+        right: 12px;
+        bottom: 12px;
+        width: min(50vw, 270px);
+        min-width: 180px;
+      }
+
+      .top-right-tip {
+        display: none;
+      }
+
+      .panel {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <canvas id="gameCanvas"></canvas>
+    <video id="inputVideo" autoplay playsinline muted></video>
+
+    <div class="hud">
+      <div class="hud-row">
+        <div class="glass-card">
+          <div class="label">分數</div>
+          <div class="value" id="scoreValue">0000</div>
+        </div>
+        <div class="glass-card">
+          <div class="label">命中率</div>
+          <div class="value" id="accuracyValue">0%</div>
+        </div>
+        <div class="glass-card">
+          <div class="label">命中 / 失手</div>
+          <div class="value small"><span class="accent-cyan" id="hitsValue">0</span> / <span class="accent-pink" id="missesValue">0</span></div>
+        </div>
+        <div class="glass-card">
+          <div class="label">手勢狀態</div>
+          <div class="value small" id="gestureValue">等待啟動</div>
+          <div class="status-text" id="hintValue">食指伸直、其餘手指收起，拇指張開後再往內扣扳機。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="top-right-tip">
+      玩法：以食指瞄準飛盤，<b>把食指快速向上一揚（像開槍後座）</b>就會發射；或保持手槍手勢，把拇指扣下也能射擊。準星會自動吸附附近目標。
+    </div>
+
+    <div class="audio-toggle" id="audioToggle" role="button" tabindex="0" aria-pressed="true" title="開關背景音樂">
+      <span class="audio-icon" id="audioIcon">♪</span>
+      <span id="audioLabel">音樂：開</span>
+    </div>
+
+    <div class="preview-shell">
+      <div class="preview-head">
+        <span>手勢追蹤畫面</span>
+        <span class="preview-dot" id="previewDot"></span>
+      </div>
+      <canvas id="previewCanvas" width="320" height="240"></canvas>
+      <div class="preview-help" id="previewHelp">
+        相機待命中。啟動後會在這裡顯示手勢與骨架偵測結果。
+      </div>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <div class="eyebrow">HTML 手勢遊戲</div>
+        <h1>手勢飛盤射擊</h1>
+        <p class="intro">
+          這是一個以手勢控制的飛盤射擊遊戲。把手比成手槍，讓食指指向畫面中的飛盤，準星會自動磁吸附近目標；拇指往內扣一下，就會發射雷射並擊碎飛盤。
+        </p>
+        <div class="guide-grid">
+          <div class="guide-card">
+            <strong>1. 瞄準</strong>
+            <p>把手比成手槍，食指伸直指向飛盤。準星會自動磁吸附近目標。</p>
+          </div>
+          <div class="guide-card">
+            <strong>2A. 快速上揚（推薦）</strong>
+            <p>瞄準後把食指快速向上一揚，像真的開槍後座一樣，即會發射一發。這個手勢最穩定，就算手姿不完美也偵測得到。</p>
+          </div>
+          <div class="guide-card">
+            <strong>2B. 拇指扳機</strong>
+            <p>也可以保持手槍姿勢，拇指先張開讓槍上膛，再往掌心扣一下觸發射擊。重新張開拇指即可再次上膛。</p>
+          </div>
+          <div class="guide-card">
+            <strong>3. 目標</strong>
+            <p>飛盤會從四周邊界飛向中心，畫面會一直維持 4 個飛盤。擊碎一個就會立刻補一個。</p>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="primary-btn" id="startBtn">啟動相機並開始遊戲</button>
+          <button class="secondary-btn" id="resumeAudioBtn">重新喚醒音效</button>
+        </div>
+        <div class="footnote">
+          需要相機權限。第一次載入會從 MediaPipe 下載手部辨識模型；若瀏覽器封鎖本機鏡頭，請改用本機 HTTP 伺服器開啟此檔案。
+        </div>
+        <div class="error-note" id="errorNote"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [5, 9], [9, 10], [10, 11], [11, 12],
+      [9, 13], [13, 14], [14, 15], [15, 16],
+      [13, 17], [17, 18], [18, 19], [19, 20],
+      [0, 17]
+    ];
+
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const video = document.getElementById("inputVideo");
+    const previewCanvas = document.getElementById("previewCanvas");
+    const previewCtx = previewCanvas.getContext("2d");
+
+    const overlay = document.getElementById("overlay");
+    const startBtn = document.getElementById("startBtn");
+    const resumeAudioBtn = document.getElementById("resumeAudioBtn");
+    const errorNote = document.getElementById("errorNote");
+    const previewHelp = document.getElementById("previewHelp");
+    const previewDot = document.getElementById("previewDot");
+    const audioToggle = document.getElementById("audioToggle");
+    const audioLabel = document.getElementById("audioLabel");
+    const audioIcon = document.getElementById("audioIcon");
+
+    const scoreValue = document.getElementById("scoreValue");
+    const accuracyValue = document.getElementById("accuracyValue");
+    const hitsValue = document.getElementById("hitsValue");
+    const missesValue = document.getElementById("missesValue");
+    const gestureValue = document.getElementById("gestureValue");
+    const hintValue = document.getElementById("hintValue");
+
+    const state = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      center: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+      running: false,
+      lastFrameTime: 0,
+      lastVideoTime: -1,
+      handLandmarker: null,
+      handReady: false,
+      visionLoaded: false,
+      stream: null,
+      handSeen: false,
+      audioContext: null,
+      noiseBuffer: null,
+      sfxGain: null,
+      musicGain: null,
+      musicEnabled: true,
+      ambientStarted: false,
+      ambientNodes: [],
+      ambientStepTimer: null,
+      shotCooldownMs: 150,
+      lastShotAt: 0,
+      score: 0,
+      hits: 0,
+      misses: 0,
+      enemies: [],
+      particles: [],
+      floaters: [],
+      impacts: [],
+      stars: [],
+      enemyIdSeed: 1,
+      hand: {
+        rawAim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        aim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        origin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 },
+        rawOrigin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 },
+        active: false,
+        lockId: null,
+        lockStrength: 0,
+        shotFlash: 0,
+        lastKnownAim: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        lastKnownOrigin: { x: window.innerWidth / 2, y: window.innerHeight * 0.72 }
+      },
+      gesture: {
+        label: "等待啟動",
+        detail: "啟動相機後開始辨識手部姿勢。",
+        armed: false,
+        thumbState: "unknown",
+        pistolGrace: 0,
+        lastLockId: null,
+        indexHistory: [],
+        flickArmed: true,
+        lastFlickAt: 0,
+        lastShotMethod: ""
+      }
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function normalize(vector) {
+      const length = Math.hypot(vector.x, vector.y) || 1;
+      return { x: vector.x / length, y: vector.y / length };
+    }
+
+    function pointFromLandmark(lm) {
+      return {
+        x: (1 - lm.x) * state.width,
+        y: lm.y * state.height
+      };
+    }
+
+    function smallPointFromLandmark(lm) {
+      return {
+        x: (1 - lm.x) * previewCanvas.width,
+        y: lm.y * previewCanvas.height
+      };
+    }
+
+    function randomRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function updateHud() {
+      scoreValue.textContent = String(state.score).padStart(4, "0");
+      hitsValue.textContent = String(state.hits);
+      missesValue.textContent = String(state.misses);
+      const totalShots = state.hits + state.misses;
+      const accuracy = totalShots ? Math.round((state.hits / totalShots) * 100) : 0;
+      accuracyValue.textContent = `${accuracy}%`;
+      const stateLabel = state.gesture.thumbState === "open"
+        ? "● 已上膛"
+        : state.gesture.thumbState === "pulled"
+          ? "○ 等待張開"
+          : "◌ 待辨識";
+      gestureValue.textContent = `${state.gesture.label}　${stateLabel}`;
+      hintValue.textContent = state.gesture.detail;
+    }
+
+    function resizeCanvas() {
+      state.width = window.innerWidth;
+      state.height = window.innerHeight;
+      state.center.x = state.width / 2;
+      state.center.y = state.height / 2;
+
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(state.width * ratio);
+      canvas.height = Math.floor(state.height * ratio);
+      canvas.style.width = `${state.width}px`;
+      canvas.style.height = `${state.height}px`;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+      if (!state.stars.length) {
+        state.stars = Array.from({ length: 90 }, () => ({
+          x: Math.random() * state.width,
+          y: Math.random() * state.height,
+          r: Math.random() * 1.7 + 0.2,
+          speed: Math.random() * 12 + 8,
+          alpha: Math.random() * 0.7 + 0.1
+        }));
+      }
+
+      state.hand.rawAim.x = clamp(state.hand.rawAim.x, 0, state.width);
+      state.hand.rawAim.y = clamp(state.hand.rawAim.y, 0, state.height);
+      state.hand.aim.x = clamp(state.hand.aim.x, 0, state.width);
+      state.hand.aim.y = clamp(state.hand.aim.y, 0, state.height);
+      state.hand.origin.x = clamp(state.hand.origin.x, 0, state.width);
+      state.hand.origin.y = clamp(state.hand.origin.y, 0, state.height);
+      state.hand.rawOrigin.x = clamp(state.hand.rawOrigin.x, 0, state.width);
+      state.hand.rawOrigin.y = clamp(state.hand.rawOrigin.y, 0, state.height);
+    }
+
+    function initStars() {
+      state.stars = Array.from({ length: 90 }, () => ({
+        x: Math.random() * state.width,
+        y: Math.random() * state.height,
+        r: Math.random() * 1.7 + 0.2,
+        speed: Math.random() * 12 + 8,
+        alpha: Math.random() * 0.7 + 0.1
+      }));
+    }
+
+    function spawnEnemy() {
+      const margin = 80;
+      const side = Math.floor(Math.random() * 4);
+      let x = 0;
+      let y = 0;
+
+      if (side === 0) {
+        x = randomRange(0, state.width);
+        y = -margin;
+      } else if (side === 1) {
+        x = state.width + margin;
+        y = randomRange(0, state.height);
+      } else if (side === 2) {
+        x = randomRange(0, state.width);
+        y = state.height + margin;
+      } else {
+        x = -margin;
+        y = randomRange(0, state.height);
+      }
+
+      const toCenter = normalize({
+        x: state.center.x - x + randomRange(-90, 90),
+        y: state.center.y - y + randomRange(-90, 90)
+      });
+
+      return {
+        id: state.enemyIdSeed++,
+        x,
+        y,
+        radius: randomRange(28, 42),
+        vx: toCenter.x * randomRange(90, 150),
+        vy: toCenter.y * randomRange(90, 150),
+        hue: randomRange(175, 335),
+        spin: randomRange(-2.2, 2.2),
+        rotation: randomRange(0, Math.PI * 2),
+        wobbleSeed: Math.random() * Math.PI * 2
+      };
+    }
+
+    function ensureEnemyCount() {
+      while (state.enemies.length < 4) {
+        state.enemies.push(spawnEnemy());
+      }
+    }
+
+    function createFloatingText(text, x, y, color) {
+      state.floaters.push({
+        text,
+        x,
+        y,
+        vx: randomRange(-18, 18),
+        vy: randomRange(-70, -40),
+        life: 0.9,
+        maxLife: 0.9,
+        color,
+        scale: randomRange(0.96, 1.12)
+      });
+    }
+
+    function createImpact(x, y, color = "rgba(89, 239, 255, 0.95)") {
+      state.impacts.push({
+        x,
+        y,
+        radius: 16,
+        life: 0.32,
+        maxLife: 0.32,
+        color
+      });
+    }
+
+    function createShatter(enemy) {
+      const shardCount = Math.round(enemy.radius * 0.7);
+      for (let i = 0; i < shardCount; i++) {
+        const angle = (Math.PI * 2 * i) / shardCount + randomRange(-0.18, 0.18);
+        const speed = randomRange(70, 240);
+        state.particles.push({
+          x: enemy.x,
+          y: enemy.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: randomRange(0.28, 0.58),
+          maxLife: randomRange(0.28, 0.58),
+          size: randomRange(2, 5),
+          hue: enemy.hue
+        });
+      }
+
+      createImpact(enemy.x, enemy.y, `hsla(${enemy.hue}, 100%, 70%, 0.95)`);
+      createFloatingText("HIT", enemy.x, enemy.y - enemy.radius * 0.8, "#9cf9ff");
+      playHitSound();
+    }
+
+    function createMissEffect(x, y) {
+      createImpact(x, y, "rgba(255, 101, 101, 0.9)");
+      createFloatingText("MISS", x, y - 8, "#ffb0c0");
+      playMissSound();
+    }
+
+    function removeEnemy(enemyId) {
+      const index = state.enemies.findIndex((enemy) => enemy.id === enemyId);
+      if (index >= 0) {
+        state.enemies.splice(index, 1);
+      }
+    }
+
+    function shoot() {
+      const now = performance.now();
+      if (now - state.lastShotAt < state.shotCooldownMs) {
+        return;
+      }
+
+      state.lastShotAt = now;
+      state.hand.shotFlash = 1;
+      playGunshotSound();
+
+      const aimPoint = { x: state.hand.aim.x, y: state.hand.aim.y };
+      let hitTarget = null;
+      let bestScore = Infinity;
+
+      for (const enemy of state.enemies) {
+        const dist = distance(aimPoint, enemy);
+        const threshold = enemy.radius + 24;
+        if (dist <= threshold) {
+          const score = dist - enemy.radius * 0.4;
+          if (score < bestScore) {
+            bestScore = score;
+            hitTarget = enemy;
+          }
+        }
+      }
+
+      if (hitTarget) {
+        state.hits += 1;
+        state.score += 100;
+        createShatter(hitTarget);
+        removeEnemy(hitTarget.id);
+        ensureEnemyCount();
+      } else {
+        state.misses += 1;
+        createMissEffect(aimPoint.x, aimPoint.y);
+      }
+
+      updateHud();
+    }
+
+    function registerBreach(enemy) {
+      state.misses += 1;
+      createFloatingText("MISS", state.center.x, state.center.y - 40, "#ffb0c0");
+      createImpact(state.center.x, state.center.y, "rgba(255, 101, 101, 0.9)");
+      playMissSound(0.65);
+      removeEnemy(enemy.id);
+      ensureEnemyCount();
+      updateHud();
+    }
+
+    function drawBackground(dt, nowSeconds) {
+      ctx.clearRect(0, 0, state.width, state.height);
+
+      const bgGradient = ctx.createRadialGradient(
+        state.center.x,
+        state.center.y,
+        120,
+        state.center.x,
+        state.center.y,
+        Math.max(state.width, state.height) * 0.85
+      );
+      bgGradient.addColorStop(0, "rgba(18, 36, 78, 0.58)");
+      bgGradient.addColorStop(0.42, "rgba(6, 18, 42, 0.42)");
+      bgGradient.addColorStop(1, "rgba(2, 8, 20, 0.98)");
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, state.width, state.height);
+
+      for (const star of state.stars) {
+        star.y += star.speed * dt;
+        if (star.y > state.height + 4) {
+          star.y = -4;
+          star.x = Math.random() * state.width;
+        }
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.translate(state.center.x, state.center.y);
+      const corePulse = 1 + Math.sin(nowSeconds * 3.1) * 0.06;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 54 + i * 28 * corePulse, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(89, 239, 255, ${0.16 - i * 0.03})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      const coreGradient = ctx.createRadialGradient(0, 0, 6, 0, 0, 46);
+      coreGradient.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+      coreGradient.addColorStop(0.22, "rgba(169, 255, 112, 0.95)");
+      coreGradient.addColorStop(0.7, "rgba(89, 239, 255, 0.35)");
+      coreGradient.addColorStop(1, "rgba(89, 239, 255, 0)");
+      ctx.fillStyle = coreGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, 48 * corePulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawEnemy(enemy, nowSeconds) {
+      ctx.save();
+      ctx.translate(enemy.x, enemy.y);
+      ctx.rotate(enemy.rotation + nowSeconds * enemy.spin * 0.14);
+
+      const halo = ctx.createRadialGradient(0, 0, enemy.radius * 0.2, 0, 0, enemy.radius * 1.8);
+      halo.addColorStop(0, `hsla(${enemy.hue}, 100%, 85%, 0.25)`);
+      halo.addColorStop(1, `hsla(${enemy.hue}, 100%, 55%, 0)`);
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(0, 0, enemy.radius * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      const fill = ctx.createRadialGradient(-enemy.radius * 0.35, -enemy.radius * 0.35, enemy.radius * 0.2, 0, 0, enemy.radius);
+      fill.addColorStop(0, "rgba(255, 255, 255, 0.96)");
+      fill.addColorStop(0.25, `hsla(${enemy.hue}, 100%, 70%, 0.95)`);
+      fill.addColorStop(0.8, `hsla(${enemy.hue}, 82%, 36%, 0.92)`);
+      fill.addColorStop(1, "rgba(6, 15, 34, 0.98)");
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(0, 0, enemy.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.82)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, enemy.radius * 0.78, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+      ctx.lineWidth = 2.8;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, enemy.radius * (0.34 + i * 0.12), i * 0.4 + enemy.wobbleSeed, i * 0.4 + enemy.wobbleSeed + Math.PI * 0.8);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawLaser() {
+      const { origin, aim, active, lockStrength } = state.hand;
+      const flash = state.hand.shotFlash;
+
+      ctx.save();
+      ctx.strokeStyle = active
+        ? `rgba(89, 239, 255, ${0.18 + lockStrength * 0.5 + flash * 0.4})`
+        : "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 2 + lockStrength * 2 + flash * 3;
+      ctx.shadowColor = flash > 0.02 ? "rgba(255, 87, 198, 0.9)" : "rgba(89, 239, 255, 0.7)";
+      ctx.shadowBlur = 12 + lockStrength * 18 + flash * 18;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(aim.x, aim.y);
+      ctx.stroke();
+
+      ctx.strokeStyle = active
+        ? `rgba(255, 255, 255, ${0.12 + lockStrength * 0.18})`
+        : "rgba(255, 255, 255, 0.05)";
+      ctx.lineWidth = 1;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(aim.x, aim.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCrosshair() {
+      const { aim, active, lockStrength } = state.hand;
+      const shotFlash = state.hand.shotFlash;
+      const radius = 16 + lockStrength * 8 + shotFlash * 10;
+      const color = active ? "89, 239, 255" : "255, 255, 255";
+
+      ctx.save();
+      ctx.translate(aim.x, aim.y);
+      ctx.shadowColor = `rgba(${color}, ${0.8})`;
+      ctx.shadowBlur = 16 + lockStrength * 12 + shotFlash * 10;
+      ctx.strokeStyle = `rgba(${color}, ${0.9})`;
+      ctx.lineWidth = 2.2;
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 0.42, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const lineLength = radius + 14;
+      const innerGap = radius - 4;
+      for (let i = 0; i < 4; i++) {
+        const angle = (Math.PI / 2) * i;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * innerGap, Math.sin(angle) * innerGap);
+        ctx.lineTo(Math.cos(angle) * lineLength, Math.sin(angle) * lineLength);
+        ctx.stroke();
+      }
+
+      if (lockStrength > 0.08) {
+        ctx.strokeStyle = `rgba(255, 87, 198, ${0.22 + lockStrength * 0.6})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius + 12 + Math.sin(performance.now() * 0.012) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawParticles(dt) {
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const particle = state.particles[i];
+        particle.life -= dt;
+        if (particle.life <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.vx *= 0.99;
+        particle.vy *= 0.99;
+
+        const alpha = particle.life / particle.maxLife;
+        ctx.fillStyle = `hsla(${particle.hue}, 100%, 72%, ${alpha})`;
+        ctx.shadowColor = `hsla(${particle.hue}, 100%, 72%, ${alpha})`;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    function drawImpacts(dt) {
+      for (let i = state.impacts.length - 1; i >= 0; i--) {
+        const impact = state.impacts[i];
+        impact.life -= dt;
+        if (impact.life <= 0) {
+          state.impacts.splice(i, 1);
+          continue;
+        }
+
+        const alpha = impact.life / impact.maxLife;
+        impact.radius += dt * 180;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = impact.color;
+        ctx.lineWidth = 4 * alpha + 0.4;
+        ctx.shadowColor = impact.color;
+        ctx.shadowBlur = 18 * alpha;
+        ctx.beginPath();
+        ctx.arc(impact.x, impact.y, impact.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    function drawFloaters(dt) {
+      for (let i = state.floaters.length - 1; i >= 0; i--) {
+        const floater = state.floaters[i];
+        floater.life -= dt;
+        if (floater.life <= 0) {
+          state.floaters.splice(i, 1);
+          continue;
+        }
+
+        floater.x += floater.vx * dt;
+        floater.y += floater.vy * dt;
+        floater.vy += 25 * dt;
+
+        const alpha = floater.life / floater.maxLife;
+        ctx.save();
+        ctx.translate(floater.x, floater.y);
+        ctx.scale(floater.scale + (1 - alpha) * 0.12, floater.scale + (1 - alpha) * 0.12);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = floater.color;
+        ctx.strokeStyle = "rgba(4, 10, 24, 0.8)";
+        ctx.lineWidth = 5;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "900 28px Inter, system-ui, sans-serif";
+        ctx.strokeText(floater.text, 0, 0);
+        ctx.fillText(floater.text, 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function render(now) {
+      const dt = Math.min((now - state.lastFrameTime) / 1000 || 0, 0.033);
+      const nowSeconds = now / 1000;
+      state.lastFrameTime = now;
+
+      drawBackground(dt, nowSeconds);
+      drawLaser();
+
+      for (const enemy of state.enemies) {
+        drawEnemy(enemy, nowSeconds);
+      }
+
+      drawParticles(dt);
+      drawImpacts(dt);
+      drawFloaters(dt);
+      drawCrosshair();
+
+      state.hand.shotFlash = Math.max(0, state.hand.shotFlash - dt * 5.6);
+    }
+
+    function updateEnemyPositions(dt) {
+      for (let i = state.enemies.length - 1; i >= 0; i--) {
+        const enemy = state.enemies[i];
+        const angleToCenter = Math.atan2(state.center.y - enemy.y, state.center.x - enemy.x);
+        enemy.vx = lerp(enemy.vx, Math.cos(angleToCenter) * 135, dt * 0.45);
+        enemy.vy = lerp(enemy.vy, Math.sin(angleToCenter) * 135, dt * 0.45);
+        enemy.x += enemy.vx * dt;
+        enemy.y += enemy.vy * dt;
+        enemy.rotation += enemy.spin * dt;
+
+        if (distance(enemy, state.center) < 44) {
+          registerBreach(enemy);
+        }
+      }
+    }
+
+    function findAimAssistTarget(rawAim) {
+      let nearest = null;
+      let nearestDistance = Infinity;
+      for (const enemy of state.enemies) {
+        const d = distance(rawAim, enemy);
+        if (d < nearestDistance) {
+          nearest = enemy;
+          nearestDistance = d;
+        }
+      }
+
+      const magnetRadius = Math.min(state.width, state.height) * 0.24;
+      if (!nearest || nearestDistance > magnetRadius) {
+        return { x: rawAim.x, y: rawAim.y, targetId: null, strength: 0 };
+      }
+
+      const normalized = 1 - nearestDistance / magnetRadius;
+      const attraction = clamp(0.18 + normalized * normalized * 0.88, 0, 0.92);
+      return {
+        x: lerp(rawAim.x, nearest.x, attraction),
+        y: lerp(rawAim.y, nearest.y, attraction),
+        targetId: nearest.id,
+        strength: attraction
+      };
+    }
+
+    function updateHandAim(dt) {
+      if (state.hand.active) {
+        const snapped = findAimAssistTarget(state.hand.rawAim);
+        state.hand.aim.x = lerp(state.hand.aim.x, snapped.x, clamp(0.16 + dt * 8, 0.14, 0.32));
+        state.hand.aim.y = lerp(state.hand.aim.y, snapped.y, clamp(0.16 + dt * 8, 0.14, 0.32));
+        state.hand.origin.x = lerp(state.hand.origin.x, state.hand.rawOrigin.x, clamp(0.18 + dt * 8, 0.16, 0.28));
+        state.hand.origin.y = lerp(state.hand.origin.y, state.hand.rawOrigin.y, clamp(0.18 + dt * 8, 0.16, 0.28));
+        if (snapped.targetId !== null && snapped.targetId !== state.gesture.lastLockId && snapped.strength > 0.35) {
+          playLockSound();
+        }
+        state.gesture.lastLockId = snapped.targetId;
+        state.hand.lockId = snapped.targetId;
+        state.hand.lockStrength = lerp(state.hand.lockStrength, snapped.strength, 0.18);
+      } else {
+        state.hand.aim.x = lerp(state.hand.aim.x, state.center.x, clamp(0.02 + dt * 1.5, 0.02, 0.08));
+        state.hand.aim.y = lerp(state.hand.aim.y, state.center.y, clamp(0.02 + dt * 1.5, 0.02, 0.08));
+        state.hand.origin.x = lerp(state.hand.origin.x, state.center.x, clamp(0.02 + dt * 1.2, 0.02, 0.08));
+        state.hand.origin.y = lerp(state.hand.origin.y, state.height * 0.72, clamp(0.02 + dt * 1.2, 0.02, 0.08));
+        state.hand.lockId = null;
+        state.hand.lockStrength = lerp(state.hand.lockStrength, 0, 0.16);
+      }
+    }
+
+    function fingerExtensionRatio(landmarks, indices) {
+      const [mcpIndex, pipIndex, dipIndex, tipIndex] = indices;
+      const mcp = landmarks[mcpIndex];
+      const pip = landmarks[pipIndex];
+      const dip = landmarks[dipIndex];
+      const tip = landmarks[tipIndex];
+      const reach = distance(tip, mcp);
+      const total = distance(mcp, pip) + distance(pip, dip) + distance(dip, tip);
+      return reach / Math.max(total, 0.0001);
+    }
+
+    function thumbSpreadRatio(landmarks, palmSize) {
+      return distance(landmarks[4], landmarks[5]) / Math.max(palmSize, 0.0001);
+    }
+
+    function evaluateGesture(points) {
+      const wrist = points[0];
+      const indexMcp = points[5];
+      const middleMcp = points[9];
+      const pinkyMcp = points[17];
+      const palmSize = (distance(wrist, indexMcp) + distance(wrist, pinkyMcp) + distance(indexMcp, pinkyMcp)) / 3;
+
+      const indexExtended = fingerExtensionRatio(points, [5, 6, 7, 8]) > 0.76;
+      const middleCurled = fingerExtensionRatio(points, [9, 10, 11, 12]) < 0.82;
+      const ringCurled = fingerExtensionRatio(points, [13, 14, 15, 16]) < 0.82;
+      const pinkyCurled = fingerExtensionRatio(points, [17, 18, 19, 20]) < 0.82;
+
+      const thumbToMiddleMcp = distance(points[4], middleMcp) / Math.max(palmSize, 0.0001);
+      const thumbToIndexMcp = distance(points[4], indexMcp) / Math.max(palmSize, 0.0001);
+
+      const pistolBase = indexExtended && middleCurled && ringCurled && pinkyCurled;
+
+      return {
+        pistolBase,
+        thumbToMiddleMcp,
+        thumbToIndexMcp,
+        palmSize
+      };
+    }
+
+    function updateGestureState(gesture) {
+      if (!state.handSeen) {
+        state.gesture.label = "未偵測到手掌";
+        state.gesture.detail = "請把手移到鏡頭中央，保持單手入鏡。";
+        state.gesture.thumbState = "unknown";
+        state.gesture.pistolGrace = 0;
+        state.gesture.armed = false;
+        updateHud();
+        return;
+      }
+
+      if (gesture.pistolBase) {
+        state.gesture.pistolGrace = 6;
+      } else if (state.gesture.pistolGrace > 0) {
+        state.gesture.pistolGrace -= 1;
+      }
+
+      const pistolActive = gesture.pistolBase || state.gesture.pistolGrace > 0;
+
+      if (!pistolActive) {
+        state.gesture.label = "調整手勢";
+        state.gesture.detail = "食指伸直，其餘三指收起，讓拇指保持外張。";
+        state.gesture.thumbState = "unknown";
+        state.gesture.armed = false;
+        updateHud();
+        return;
+      }
+
+      const d = gesture.thumbToMiddleMcp;
+      const prev = state.gesture.thumbState;
+      const OPEN_FROM_UNKNOWN = 0.86;
+      const TRIGGER_PULL = 0.76;
+      const REARM_LEVEL = 0.88;
+
+      if (prev === "open") {
+        if (d < TRIGGER_PULL) {
+          state.gesture.thumbState = "pulled";
+          state.gesture.armed = false;
+          state.gesture.lastShotMethod = "thumb";
+          shoot();
+          state.gesture.label = "扳機扣下";
+          state.gesture.detail = "射擊！把拇指重新張開即可再次上膛。";
+        } else {
+          state.gesture.armed = true;
+          state.gesture.label = "已上膛";
+          state.gesture.detail = "拇指已張開。把拇指往掌心扣一下即可發射。或把食指快速上揚觸發。";
+        }
+      } else if (prev === "pulled") {
+        if (d > REARM_LEVEL) {
+          state.gesture.thumbState = "open";
+          state.gesture.armed = true;
+          playArmSound();
+          state.gesture.label = "重新上膛";
+          state.gesture.detail = "準備下一發，扣拇指或食指快速上揚即可發射。";
+        } else {
+          state.gesture.armed = false;
+          state.gesture.label = "張開拇指上膛";
+          state.gesture.detail = "把拇指往外張，讓槍重新上膛。";
+        }
+      } else {
+        if (d > OPEN_FROM_UNKNOWN) {
+          state.gesture.thumbState = "open";
+          state.gesture.armed = true;
+          playArmSound();
+          state.gesture.label = "已上膛";
+          state.gesture.detail = "扣拇指或把食指快速上揚即可發射。";
+        } else if (d < TRIGGER_PULL) {
+          state.gesture.thumbState = "pulled";
+          state.gesture.armed = false;
+          state.gesture.label = "張開拇指上膛";
+          state.gesture.detail = "先把拇指張開，讓槍上膛後再扣扳機。";
+        } else {
+          state.gesture.armed = false;
+          state.gesture.label = "手槍手勢已對準";
+          state.gesture.detail = "食指瞄準目標後，快速上揚一下即可射擊。";
+        }
+      }
+
+      updateHud();
+    }
+
+    function detectIndexFlick(landmarks) {
+      const indexTip = pointFromLandmark(landmarks[8]);
+      const wrist = pointFromLandmark(landmarks[0]);
+      const indexMcp = pointFromLandmark(landmarks[5]);
+      const pinkyMcp = pointFromLandmark(landmarks[17]);
+
+      const palmSize = (distance(wrist, indexMcp) + distance(wrist, pinkyMcp) + distance(indexMcp, pinkyMcp)) / 3;
+      if (palmSize < 1) {
+        return;
+      }
+
+      const pointsArr = landmarks.map(pointFromLandmark);
+      const indexExt = fingerExtensionRatio(pointsArr, [5, 6, 7, 8]);
+      if (indexExt < 0.7) {
+        return;
+      }
+
+      const relY = (wrist.y - indexTip.y) / palmSize;
+      const now = performance.now();
+      const hist = state.gesture.indexHistory;
+      hist.push({ t: now, relY });
+      while (hist.length > 0 && now - hist[0].t > 400) {
+        hist.shift();
+      }
+
+      if (!state.gesture.flickArmed && now - state.gesture.lastFlickAt > 420) {
+        state.gesture.flickArmed = true;
+      }
+
+      let past = null;
+      for (const h of hist) {
+        const age = now - h.t;
+        if (age >= 90 && age <= 220) {
+          past = h;
+          break;
+        }
+      }
+      if (!past) {
+        return;
+      }
+
+      const dt = (now - past.t) / 1000;
+      if (dt <= 0) {
+        return;
+      }
+
+      const deltaRelY = relY - past.relY;
+      const velocity = deltaRelY / dt;
+
+      const FLICK_VELOCITY = 4.8;
+      const MIN_DISPLACEMENT = 0.22;
+
+      if (velocity > FLICK_VELOCITY && deltaRelY > MIN_DISPLACEMENT && state.gesture.flickArmed) {
+        if (performance.now() - state.lastShotAt < state.shotCooldownMs) {
+          return;
+        }
+        state.gesture.flickArmed = false;
+        state.gesture.lastFlickAt = now;
+        state.gesture.lastShotMethod = "flick";
+        shoot();
+      }
+
+      if (Math.abs(velocity) < 1.5 && now - state.gesture.lastFlickAt > 220) {
+        state.gesture.flickArmed = true;
+      }
+    }
+
+    function updateAimFromLandmarks(landmarks) {
+      const wrist = pointFromLandmark(landmarks[0]);
+      const thumbBase = pointFromLandmark(landmarks[2]);
+      const indexMcp = pointFromLandmark(landmarks[5]);
+      const indexPip = pointFromLandmark(landmarks[6]);
+      const indexTip = pointFromLandmark(landmarks[8]);
+
+      const direction = normalize({
+        x: indexTip.x - indexPip.x,
+        y: indexTip.y - indexPip.y
+      });
+
+      const projectionLength = clamp(Math.min(state.width, state.height) * 0.18, 90, 220);
+      const projectedAim = {
+        x: clamp(indexTip.x + direction.x * projectionLength, 24, state.width - 24),
+        y: clamp(indexTip.y + direction.y * projectionLength, 24, state.height - 24)
+      };
+
+      state.hand.rawAim.x = lerp(state.hand.rawAim.x, projectedAim.x, 0.38);
+      state.hand.rawAim.y = lerp(state.hand.rawAim.y, projectedAim.y, 0.38);
+
+      const origin = {
+        x: lerp(wrist.x, thumbBase.x, 0.44) + (indexMcp.x - wrist.x) * 0.12,
+        y: lerp(wrist.y, thumbBase.y, 0.44) + (indexMcp.y - wrist.y) * 0.12
+      };
+
+      state.hand.rawOrigin.x = lerp(state.hand.rawOrigin.x, clamp(origin.x, 10, state.width - 10), 0.34);
+      state.hand.rawOrigin.y = lerp(state.hand.rawOrigin.y, clamp(origin.y, 10, state.height - 10), 0.34);
+      state.hand.lastKnownAim = { x: state.hand.rawAim.x, y: state.hand.rawAim.y };
+      state.hand.lastKnownOrigin = { x: state.hand.rawOrigin.x, y: state.hand.rawOrigin.y };
+    }
+
+    function drawPreview(landmarks) {
+      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      if (video.readyState >= 2) {
+        previewCtx.save();
+        previewCtx.translate(previewCanvas.width, 0);
+        previewCtx.scale(-1, 1);
+        previewCtx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+        previewCtx.restore();
+      } else {
+        const fallback = previewCtx.createLinearGradient(0, 0, 0, previewCanvas.height);
+        fallback.addColorStop(0, "#091325");
+        fallback.addColorStop(1, "#040814");
+        previewCtx.fillStyle = fallback;
+        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+      }
+
+      previewCtx.fillStyle = "rgba(8, 20, 44, 0.34)";
+      previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      if (!landmarks || !landmarks.length) {
+        previewCtx.fillStyle = "rgba(242, 246, 255, 0.86)";
+        previewCtx.font = "600 15px Inter, sans-serif";
+        previewCtx.textAlign = "center";
+        previewCtx.fillText("等待手掌進入鏡頭", previewCanvas.width / 2, previewCanvas.height / 2);
+        return;
+      }
+
+      previewCtx.lineWidth = 2;
+      previewCtx.strokeStyle = "rgba(89, 239, 255, 0.85)";
+      previewCtx.shadowColor = "rgba(89, 239, 255, 0.56)";
+      previewCtx.shadowBlur = 8;
+
+      for (const [a, b] of HAND_CONNECTIONS) {
+        const p1 = smallPointFromLandmark(landmarks[a]);
+        const p2 = smallPointFromLandmark(landmarks[b]);
+        previewCtx.beginPath();
+        previewCtx.moveTo(p1.x, p1.y);
+        previewCtx.lineTo(p2.x, p2.y);
+        previewCtx.stroke();
+      }
+
+      previewCtx.shadowBlur = 0;
+      for (let i = 0; i < landmarks.length; i++) {
+        const p = smallPointFromLandmark(landmarks[i]);
+        previewCtx.fillStyle = i === 8 ? "#a9ff70" : i === 4 ? "#ffcf70" : "#ffffff";
+        previewCtx.beginPath();
+        previewCtx.arc(p.x, p.y, i === 8 ? 4.8 : 3.4, 0, Math.PI * 2);
+        previewCtx.fill();
+      }
+    }
+
+    async function loadVisionAndCamera() {
+      errorNote.textContent = "正在載入手勢模型與請求相機權限...";
+      previewHelp.textContent = "正在載入手勢模型...";
+
+      if (!state.visionLoaded) {
+        const visionModule = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14");
+        const { FilesetResolver, HandLandmarker } = visionModule;
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+        );
+
+        state.handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            delegate: "GPU"
+          },
+          runningMode: "VIDEO",
+          numHands: 1,
+          minHandDetectionConfidence: 0.6,
+          minTrackingConfidence: 0.6,
+          minHandPresenceConfidence: 0.6
+        });
+        state.visionLoaded = true;
+      }
+
+      if (!state.stream) {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("這個瀏覽器或目前開啟方式不支援相機存取。");
+        }
+
+        state.stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        });
+        video.srcObject = state.stream;
+        await video.play();
+      }
+
+      state.handReady = true;
+      previewDot.classList.add("live");
+      previewHelp.textContent = "即時追蹤中。綠點代表食指、黃點代表拇指，準備擺出手槍手勢。";
+      errorNote.textContent = "";
+    }
+
+    function ensureAudio() {
+      if (state.audioContext) {
+        return;
+      }
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) {
+        return;
+      }
+
+      const audio = new AudioContextClass();
+      state.audioContext = audio;
+
+      const noiseBuf = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.4), audio.sampleRate);
+      const noiseData = noiseBuf.getChannelData(0);
+      for (let i = 0; i < noiseData.length; i++) {
+        noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseData.length);
+      }
+      state.noiseBuffer = noiseBuf;
+
+      state.sfxGain = audio.createGain();
+      state.sfxGain.gain.value = 0.9;
+      state.sfxGain.connect(audio.destination);
+
+      state.musicGain = audio.createGain();
+      state.musicGain.gain.value = state.musicEnabled ? 0.14 : 0;
+      state.musicGain.connect(audio.destination);
+    }
+
+    async function resumeAudio() {
+      ensureAudio();
+      if (state.audioContext && state.audioContext.state === "suspended") {
+        await state.audioContext.resume();
+      }
+    }
+
+    function startAmbientMusic() {
+      if (!state.audioContext || state.ambientStarted) {
+        return;
+      }
+      state.ambientStarted = true;
+
+      const audio = state.audioContext;
+      const time = audio.currentTime;
+      const musicBus = state.musicGain;
+
+      const drone = audio.createOscillator();
+      drone.type = "sawtooth";
+      drone.frequency.value = 55;
+
+      const droneFilter = audio.createBiquadFilter();
+      droneFilter.type = "lowpass";
+      droneFilter.frequency.value = 180;
+      droneFilter.Q.value = 8;
+
+      const droneGain = audio.createGain();
+      droneGain.gain.value = 0.36;
+
+      drone.connect(droneFilter).connect(droneGain).connect(musicBus);
+      drone.start(time);
+
+      const lfo = audio.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 0.08;
+      const lfoDepth = audio.createGain();
+      lfoDepth.gain.value = 70;
+      lfo.connect(lfoDepth).connect(droneFilter.frequency);
+      lfo.start(time);
+
+      const pad = audio.createOscillator();
+      pad.type = "sine";
+      pad.frequency.value = 110;
+      const padGain = audio.createGain();
+      padGain.gain.value = 0.12;
+      const padLfo = audio.createOscillator();
+      padLfo.frequency.value = 0.18;
+      const padLfoDepth = audio.createGain();
+      padLfoDepth.gain.value = 0.04;
+      padLfo.connect(padLfoDepth).connect(padGain.gain);
+      pad.connect(padGain).connect(musicBus);
+      pad.start(time);
+      padLfo.start(time);
+
+      const arpBus = audio.createGain();
+      arpBus.gain.value = 0.9;
+      arpBus.connect(musicBus);
+
+      const delay = audio.createDelay();
+      delay.delayTime.value = 0.34;
+      const feedback = audio.createGain();
+      feedback.gain.value = 0.44;
+      const delayWet = audio.createGain();
+      delayWet.gain.value = 0.55;
+      arpBus.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(delayWet);
+      delayWet.connect(musicBus);
+
+      const scale = [220, 261.63, 329.63, 392, 440, 523.25, 659.25];
+      let step = 0;
+
+      const scheduleNote = () => {
+        if (!state.audioContext || !state.ambientStarted) {
+          return;
+        }
+        const ctxAudio = state.audioContext;
+        const t = ctxAudio.currentTime;
+        const freq = scale[step % scale.length];
+        step += (step % 3 === 2) ? 2 : 1;
+
+        const osc = ctxAudio.createOscillator();
+        osc.type = "triangle";
+        osc.frequency.value = freq;
+
+        const noteGain = ctxAudio.createGain();
+        noteGain.gain.setValueAtTime(0.0001, t);
+        noteGain.gain.exponentialRampToValueAtTime(0.34, t + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+
+        osc.connect(noteGain).connect(arpBus);
+        osc.start(t);
+        osc.stop(t + 0.6);
+
+        const interval = 420 + (Math.random() * 80 - 40);
+        state.ambientStepTimer = setTimeout(scheduleNote, interval);
+      };
+
+      scheduleNote();
+
+      state.ambientNodes.push(drone, lfo, pad, padLfo);
+    }
+
+    function setMusicEnabled(enabled) {
+      state.musicEnabled = enabled;
+      if (state.musicGain && state.audioContext) {
+        const target = enabled ? 0.14 : 0;
+        state.musicGain.gain.setTargetAtTime(target, state.audioContext.currentTime, 0.12);
+      }
+      if (audioToggle) {
+        audioToggle.classList.toggle("off", !enabled);
+        audioToggle.setAttribute("aria-pressed", enabled ? "true" : "false");
+      }
+      if (audioLabel) {
+        audioLabel.textContent = enabled ? "音樂：開" : "音樂：關";
+      }
+      if (audioIcon) {
+        audioIcon.textContent = enabled ? "♪" : "\u2715";
+      }
+    }
+
+    function playGunshotSound() {
+      if (!state.audioContext) {
+        return;
+      }
+      const audio = state.audioContext;
+      const t = audio.currentTime;
+
+      const noise = audio.createBufferSource();
+      noise.buffer = state.noiseBuffer;
+      const hp = audio.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 600;
+      const lp = audio.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(3400, t);
+      lp.frequency.exponentialRampToValueAtTime(520, t + 0.18);
+      const noiseGain = audio.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.55, t + 0.005);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      noise.connect(hp).connect(lp).connect(noiseGain).connect(state.sfxGain);
+      noise.start(t);
+      noise.stop(t + 0.24);
+
+      const body = audio.createOscillator();
+      body.type = "square";
+      body.frequency.setValueAtTime(140, t);
+      body.frequency.exponentialRampToValueAtTime(58, t + 0.15);
+      const bodyGain = audio.createGain();
+      bodyGain.gain.setValueAtTime(0.0001, t);
+      bodyGain.gain.exponentialRampToValueAtTime(0.28, t + 0.004);
+      bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      body.connect(bodyGain).connect(state.sfxGain);
+      body.start(t);
+      body.stop(t + 0.2);
+    }
+
+    function playHitSound() {
+      if (!state.audioContext) {
+        return;
+      }
+      const audio = state.audioContext;
+      const t = audio.currentTime;
+
+      const tone = audio.createOscillator();
+      tone.type = "triangle";
+      tone.frequency.setValueAtTime(440, t);
+      tone.frequency.exponentialRampToValueAtTime(880, t + 0.08);
+      tone.frequency.exponentialRampToValueAtTime(220, t + 0.22);
+
+      const toneGain = audio.createGain();
+      toneGain.gain.setValueAtTime(0.0001, t);
+      toneGain.gain.exponentialRampToValueAtTime(0.28, t + 0.008);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      tone.connect(toneGain).connect(state.sfxGain);
+      tone.start(t);
+      tone.stop(t + 0.3);
+
+      const sparkle = audio.createBufferSource();
+      sparkle.buffer = state.noiseBuffer;
+      const bp = audio.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 3200;
+      bp.Q.value = 1.4;
+      const sparkleGain = audio.createGain();
+      sparkleGain.gain.setValueAtTime(0.18, t);
+      sparkleGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      sparkle.connect(bp).connect(sparkleGain).connect(state.sfxGain);
+      sparkle.start(t);
+      sparkle.stop(t + 0.22);
+    }
+
+    function playMissSound(volume = 1) {
+      if (!state.audioContext) {
+        return;
+      }
+      const audio = state.audioContext;
+      const t = audio.currentTime;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(110, t + 0.1);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.08 * volume, t + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+      osc.connect(gain).connect(state.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.16);
+    }
+
+    function playArmSound() {
+      if (!state.audioContext) {
+        return;
+      }
+      const audio = state.audioContext;
+      const t = audio.currentTime;
+      const osc = audio.createOscillator();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(880, t);
+      osc.frequency.exponentialRampToValueAtTime(1400, t + 0.06);
+      const gain = audio.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.13, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+      osc.connect(gain).connect(state.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.12);
+
+      const click = audio.createBufferSource();
+      click.buffer = state.noiseBuffer;
+      const hp = audio.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 2200;
+      const clickGain = audio.createGain();
+      clickGain.gain.setValueAtTime(0.12, t);
+      clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      click.connect(hp).connect(clickGain).connect(state.sfxGain);
+      click.start(t);
+      click.stop(t + 0.09);
+    }
+
+    function playLockSound() {
+      if (!state.audioContext) {
+        return;
+      }
+      const audio = state.audioContext;
+      const t = audio.currentTime;
+      const osc = audio.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(1320, t);
+      osc.frequency.exponentialRampToValueAtTime(1860, t + 0.08);
+      const gain = audio.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.06, t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      osc.connect(gain).connect(state.sfxGain);
+      osc.start(t);
+      osc.stop(t + 0.14);
+    }
+
+    function processHandTracking(now) {
+      if (!state.handLandmarker || video.readyState < 2) {
+        drawPreview(null);
+        return;
+      }
+
+      if (video.currentTime === state.lastVideoTime) {
+        return;
+      }
+      state.lastVideoTime = video.currentTime;
+
+      const result = state.handLandmarker.detectForVideo(video, now);
+      const hasHand = result.landmarks && result.landmarks.length > 0;
+      state.handSeen = hasHand;
+      state.hand.active = hasHand;
+
+      if (!hasHand) {
+        drawPreview(null);
+        updateGestureState({ pistolBase: false, thumbToMiddleMcp: 1, thumbToIndexMcp: 1 });
+        return;
+      }
+
+      const handLandmarks = result.landmarks[0];
+      drawPreview(handLandmarks);
+
+      const points = handLandmarks.map(pointFromLandmark);
+      const gesture = evaluateGesture(points);
+      updateAimFromLandmarks(handLandmarks);
+      updateGestureState(gesture);
+      detectIndexFlick(handLandmarks);
+    }
+
+    function gameLoop(now) {
+      if (!state.running) {
+        return;
+      }
+
+      processHandTracking(now);
+      const dt = Math.min((now - state.lastFrameTime) / 1000 || 0, 0.033);
+      updateEnemyPositions(dt);
+      ensureEnemyCount();
+      updateHandAim(dt);
+      render(now);
+      requestAnimationFrame(gameLoop);
+    }
+
+    async function startGame() {
+      startBtn.disabled = true;
+      startBtn.textContent = "啟動中...";
+
+      try {
+        await resumeAudio();
+        startAmbientMusic();
+        setMusicEnabled(state.musicEnabled);
+        await loadVisionAndCamera();
+
+        if (!state.running) {
+          state.running = true;
+          state.lastFrameTime = performance.now();
+          ensureEnemyCount();
+          overlay.classList.add("hidden");
+          requestAnimationFrame(gameLoop);
+        } else {
+          overlay.classList.add("hidden");
+        }
+
+        state.gesture.label = "等待手勢";
+        state.gesture.detail = "請把手移到鏡頭中央。";
+        updateHud();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errorNote.textContent = `啟動失敗：${message}`;
+        previewHelp.textContent = "相機或模型載入失敗。";
+        state.running = false;
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = "啟動相機並開始遊戲";
+      }
+    }
+
+    startBtn.addEventListener("click", startGame);
+    resumeAudioBtn.addEventListener("click", async () => {
+      try {
+        await resumeAudio();
+        startAmbientMusic();
+        errorNote.textContent = "音效已喚醒。";
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        errorNote.textContent = `無法喚醒音效：${message}`;
+      }
+    });
+
+    async function toggleMusic() {
+      await resumeAudio();
+      startAmbientMusic();
+      setMusicEnabled(!state.musicEnabled);
+    }
+
+    audioToggle.addEventListener("click", toggleMusic);
+    audioToggle.addEventListener("keydown", (event) => {
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        toggleMusic();
+      }
+    });
+
+    window.addEventListener("keydown", async (event) => {
+      const key = event.key.toLowerCase();
+      if (key === "r") {
+        overlay.classList.remove("hidden");
+        return;
+      }
+      if (key === "m") {
+        event.preventDefault();
+        await toggleMusic();
+        return;
+      }
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        if (!state.running) {
+          await startGame();
+        } else {
+          await resumeAudio();
+        }
+      }
+    });
+
+    window.addEventListener("resize", resizeCanvas);
+
+    initStars();
+    resizeCanvas();
+    ensureEnemyCount();
+    updateHud();
+    drawPreview(null);
+    render(performance.now());
+  </script>
+</body>
+</html>
